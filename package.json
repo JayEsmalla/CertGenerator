@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "jszip": "^3.10.2",
     "mammoth": "^1.12.3",
     "react": "latest",
     "react-dom": "latest",

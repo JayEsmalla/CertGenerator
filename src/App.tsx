@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import CertificateEditor from './components/CertificateEditor'
+import GeneratePanel from './components/GeneratePanel'
 import RecipientsPanel from './components/RecipientsPanel'
 import TemplateGallery from './components/TemplateGallery'
 import { defaultTemplate, starterTemplates } from './data/templates'
@@ -49,18 +50,6 @@ function TemplatesPanel({
   )
 }
 
-function GeneratePlaceholder({ dataset }: { dataset: RecipientDataset }) {
-  const enabledCount = dataset.rows.filter((row) => row.enabled).length
-  return (
-    <section className="stage-card placeholder-stage">
-      <div className="placeholder-icon">↓</div>
-      <div className="eyebrow">Generation pipeline</div>
-      <h2>{enabledCount ? `${enabledCount} certificates ready.` : 'Generate'}</h2>
-      <p>Recipient merging is connected. Individual PDF, combined PDF, and ZIP export are the next implementation milestone.</p>
-    </section>
-  )
-}
-
 export default function App() {
   const [activeStep, setActiveStep] = useState<WorkflowStep>('templates')
   const [selectedTemplate, setSelectedTemplate] = useState<CertificateTemplate>(() => cloneTemplate(defaultTemplate))
@@ -99,7 +88,7 @@ export default function App() {
         {activeStep === 'templates' && <TemplatesPanel selectedTemplate={selectedTemplate} onSelect={(template) => setSelectedTemplate(cloneTemplate(template))} onUseTemplate={useTemplate} />}
         {activeStep === 'editor' && <CertificateEditor template={selectedTemplate} onChange={setSelectedTemplate} />}
         {activeStep === 'recipients' && <RecipientsPanel template={selectedTemplate} dataset={recipients} onChange={setRecipients} onContinue={() => setActiveStep('generate')} />}
-        {activeStep === 'generate' && <GeneratePlaceholder dataset={recipients} />}
+        {activeStep === 'generate' && <GeneratePanel template={selectedTemplate} dataset={recipients} onBack={() => setActiveStep('recipients')} />}
       </main>
     </div>
   )
