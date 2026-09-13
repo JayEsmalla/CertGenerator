@@ -263,7 +263,7 @@ export default function CertificatePreview({
                   draggable={false}
                   style={{ objectFit: element.objectFit, borderRadius: element.borderRadius }}
                 />
-              ) : (interactive || compact) ? (
+              ) : (interactive || compact || data === undefined) ? (
                 <div className="image-slot-placeholder" style={{ borderRadius: element.borderRadius }}>
                   <span>{element.placeholderLabel ?? element.name}</span>
                 </div>

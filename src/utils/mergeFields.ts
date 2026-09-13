@@ -72,9 +72,15 @@ export type MergeTextPart = {
 }
 
 export function getTemplateMergeValues(template: CertificateTemplate, values?: RecipientValues, useSample = false): RecipientValues | undefined {
-  const defaults = template.defaults ?? {}
-  const sample = useSample ? template.sampleData ?? {} : {}
-  const merged = { ...defaults, ...sample, ...(values ?? {}) }
+  const defaults = Object.fromEntries(
+    Object.entries(template.defaults ?? {}).filter(([, value]) => value !== undefined && value.trim() !== ''),
+  )
+  const presentationValues = useSample
+    ? (template.placeholderData ?? template.sampleData ?? {})
+    : values === undefined
+      ? (template.placeholderData ?? {})
+      : {}
+  const merged = { ...presentationValues, ...defaults, ...(values ?? {}) }
   return Object.keys(merged).length ? merged : undefined
 }
 

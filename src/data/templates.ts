@@ -96,7 +96,12 @@ function imageSlot(
   height: number,
   borderRadius = 0,
 ): CertificateImageElement {
-  return { id, name, type: 'image', slotKey, placeholderLabel: label, x, y, width, height, objectFit: 'contain', borderRadius }
+  const placeholderLabel = /signature/i.test(label)
+    ? 'SIGNATURE'
+    : /seal/i.test(label)
+      ? 'OFFICIAL SEAL'
+      : 'YOUR LOGO'
+  return { id, name, type: 'image', slotKey, placeholderLabel, x, y, width, height, objectFit: 'contain', borderRadius }
 }
 
 function mergeField(key: string, label: string, group: CertificateQuickField['group'], placeholder: string, required = true): CertificateQuickField {
@@ -107,17 +112,39 @@ function elementField(key: string, label: string, group: CertificateQuickField['
   return { key, label, group, source: 'element', elementId, placeholder, required: true }
 }
 
+const REAL_CERTIFICATE_PLACEHOLDERS: Record<string, string> = {
+  organization: 'YOUR ORGANIZATION NAME',
+  organization_tagline: 'ORGANIZATION TAGLINE',
+  name: 'RECIPIENT NAME',
+  event: 'PROGRAM / EVENT NAME',
+  award: 'AWARD / ACHIEVEMENT',
+  role: 'ROLE / RECOGNITION',
+  date: 'MONTH DD, YYYY',
+  academic_year: 'ACADEMIC YEAR 20XX–20XX',
+  certificate_number: 'CERTIFICATE NO. 0001',
+  signatory: 'AUTHORIZED SIGNATORY',
+  signatory_title: 'POSITION / TITLE',
+  secondary_signatory: 'SECOND AUTHORIZED SIGNATORY',
+  secondary_signatory_title: 'POSITION / TITLE',
+}
+
 function premium(details: {
   purpose: string
   style: string
   tags: string[]
   palette: CertificatePalette
   sampleData: Record<string, string>
+  placeholderData?: Record<string, string>
   quickFields: CertificateQuickField[]
   imageSlots?: CertificateImageSlot[]
-}): Pick<CertificateTemplate, 'purpose' | 'style' | 'tags' | 'palette' | 'sampleData' | 'defaults' | 'quickFields' | 'imageSlots'> {
+}): Pick<CertificateTemplate, 'purpose' | 'style' | 'tags' | 'palette' | 'sampleData' | 'placeholderData' | 'defaults' | 'quickFields' | 'imageSlots'> {
   const defaults = Object.fromEntries(details.quickFields.filter((field) => field.source !== 'element').map((field) => [field.key, '']))
-  return { ...details, defaults, imageSlots: details.imageSlots ?? [] }
+  return {
+    ...details,
+    placeholderData: { ...REAL_CERTIFICATE_PLACEHOLDERS, ...(details.placeholderData ?? {}) },
+    defaults,
+    imageSlots: details.imageSlots ?? [],
+  }
 }
 
 export const starterTemplates: CertificateTemplate[] = [

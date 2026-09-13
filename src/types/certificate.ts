@@ -103,6 +103,7 @@ export type CertificateTemplate = {
   palette?: CertificatePalette
   defaults?: Record<string, string>
   sampleData?: Record<string, string>
+  placeholderData?: Record<string, string>
   quickFields?: CertificateQuickField[]
   imageSlots?: CertificateImageSlot[]
 }
