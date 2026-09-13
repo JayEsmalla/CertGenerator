@@ -1,8 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import CertificateEditor from './components/CertificateEditor'
-import GeneratePanel from './components/GeneratePanel'
-import QuickCustomizePanel from './components/QuickCustomizePanel'
-import RecipientsPanel from './components/RecipientsPanel'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import TemplateGallery from './components/TemplateGallery'
 import { defaultTemplate, starterTemplates } from './data/templates'
 import {
@@ -17,6 +13,11 @@ import {
 import { emptyRecipientDataset } from './types/recipients'
 import type { CertificateTemplate } from './types/certificate'
 import type { RecipientDataset } from './types/recipients'
+
+const CertificateEditor = lazy(() => import('./components/CertificateEditor'))
+const GeneratePanel = lazy(() => import('./components/GeneratePanel'))
+const QuickCustomizePanel = lazy(() => import('./components/QuickCustomizePanel'))
+const RecipientsPanel = lazy(() => import('./components/RecipientsPanel'))
 
 type WorkflowStep = PersistedWorkflowStep
 
@@ -246,6 +247,7 @@ export default function App() {
       </nav>
 
       <main className="app-main">
+        <Suspense fallback={<div className="workflow-loading" role="status">Loading workspace…</div>}>
         {activeStep === 'templates' && <TemplatesPanel templates={availableTemplates} customTemplateIds={customTemplateIds} selectedTemplate={selectedTemplate} onSelect={(template) => setSelectedTemplate(cloneTemplate(template))} onUseTemplate={useTemplate} onDeleteTemplate={(template) => void removeCustomTemplate(template)} />}
         {activeStep === 'editor' && editorMode === 'quick' && selectedTemplate.quickFields?.length ? (
           <QuickCustomizePanel
@@ -264,6 +266,7 @@ export default function App() {
         )}
         {activeStep === 'recipients' && <RecipientsPanel template={selectedTemplate} dataset={recipients} onChange={setRecipients} onContinue={() => setActiveStep('generate')} />}
         {activeStep === 'generate' && <GeneratePanel template={selectedTemplate} dataset={recipients} onBack={() => setActiveStep('recipients')} />}
+        </Suspense>
       </main>
     </div>
   )

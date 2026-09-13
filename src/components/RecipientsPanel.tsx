@@ -23,12 +23,18 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
   const [isImporting, setIsImporting] = useState(false)
   const [error, setError] = useState('')
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [page, setPage] = useState(0)
+  const pageSize = 100
 
   const enabledRows = useMemo(() => dataset.rows.filter((row) => row.enabled), [dataset.rows])
   const previewRow = enabledRows[Math.min(previewIndex, Math.max(enabledRows.length - 1, 0))]
   const requiredFields = useMemo(() => getTemplateMergeFields(template), [template])
   const integrity = useMemo(() => analyzeRecipientIntegrity(template, dataset), [dataset, template])
   const missingFields = integrity.missingDatasetFields
+  const pageCount = Math.max(1, Math.ceil(dataset.rows.length / pageSize))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageStart = safePage * pageSize
+  const visibleRows = dataset.rows.slice(pageStart, pageStart + pageSize)
 
   const handleFile = async (file?: File) => {
     if (!file) return
@@ -38,6 +44,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
       const imported = await importRecipientFile(file)
       onChange(imported)
       setPreviewIndex(0)
+      setPage(0)
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : 'Unable to import this file.')
     } finally {
@@ -60,6 +67,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
   const removeRow = (rowId: string) => {
     onChange({ ...dataset, rows: dataset.rows.filter((row) => row.id !== rowId) })
     setPreviewIndex(0)
+    if (pageStart >= Math.max(0, dataset.rows.length - 1)) setPage((current) => Math.max(0, current - 1))
   }
 
   const addRow = () => {
@@ -68,7 +76,9 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
       enabled: true,
       values: Object.fromEntries(dataset.fields.map((field) => [field, ''])),
     }
-    onChange({ ...dataset, rows: [...dataset.rows, row] })
+    const nextRows = [...dataset.rows, row]
+    onChange({ ...dataset, rows: nextRows })
+    setPage(Math.floor((nextRows.length - 1) / pageSize))
   }
 
   const renameField = (oldField: string, requestedName: string) => {
@@ -147,6 +157,10 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
                 <div><strong>Review rows</strong><span>Rename column headers to map fields.</span></div>
                 <button type="button" onClick={addRow}>+ Add row</button>
               </div>
+              <div className="recipient-pagination">
+                <span>Showing {pageStart + 1}–{Math.min(pageStart + pageSize, dataset.rows.length)} of {dataset.rows.length}</span>
+                <div><button type="button" disabled={safePage === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>← Previous</button><span>Page {safePage + 1} of {pageCount}</span><button type="button" disabled={safePage >= pageCount - 1} onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}>Next →</button></div>
+              </div>
               <div className="recipient-table-wrap">
                 <table className="recipient-table">
                   <thead>
@@ -169,7 +183,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
                     </tr>
                   </thead>
                   <tbody>
-                    {dataset.rows.map((row) => (
+                    {visibleRows.map((row) => (
                       <tr key={row.id} className={`${row.enabled ? '' : 'disabled-row'} ${integrity.invalidRowIds.has(row.id) ? 'invalid-row' : ''} ${integrity.duplicateRowIds.has(row.id) ? 'duplicate-row' : ''}`.trim()}>
                         <td className="include-column"><input type="checkbox" checked={row.enabled} onChange={(event) => toggleRow(row.id, event.target.checked)} aria-label={`Use row ${row.id}`} /></td>
                         {dataset.fields.map((field) => {

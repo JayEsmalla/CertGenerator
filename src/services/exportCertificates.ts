@@ -1,12 +1,37 @@
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
-import JSZip from 'jszip'
+import type JSZipInstance from 'jszip'
 import { EXPORT_LIMITS } from '../config/limits'
 import type { CertificateTemplate } from '../types/certificate'
 import type { RecipientRow } from '../types/recipients'
 
 type ProgressCallback = (completed: number, total: number, label: string) => void
 type RenderRecipient = (row: RecipientRow, index: number) => Promise<HTMLElement>
+type PdfConstructor = typeof import('jspdf')['jsPDF']
+type PdfInstance = InstanceType<PdfConstructor>
+
+type Html2Canvas = typeof import('html2canvas')['default']
+type ZipConstructor = new () => JSZipInstance
+
+let html2CanvasPromise: Promise<Html2Canvas> | null = null
+let pdfConstructorPromise: Promise<PdfConstructor> | null = null
+let zipConstructorPromise: Promise<ZipConstructor> | null = null
+
+function loadHtml2Canvas() {
+  html2CanvasPromise ??= import('html2canvas').then((module) => module.default)
+  return html2CanvasPromise
+}
+
+function loadPdfConstructor() {
+  pdfConstructorPromise ??= import('jspdf').then((module) => module.jsPDF)
+  return pdfConstructorPromise
+}
+
+function loadZipConstructor() {
+  zipConstructorPromise ??= import('jszip').then((module) => {
+    const compatible = module as unknown as { default?: ZipConstructor }
+    return compatible.default ?? (module as unknown as ZipConstructor)
+  })
+  return zipConstructorPromise
+}
 
 function abortError() {
   return new DOMException('Export cancelled.', 'AbortError')
@@ -67,6 +92,8 @@ async function waitForAssets(element: HTMLElement, signal?: AbortSignal) {
 async function captureCertificate(element: HTMLElement, signal?: AbortSignal) {
   await waitForAssets(element, signal)
   throwIfAborted(signal)
+  const html2canvas = await loadHtml2Canvas()
+  throwIfAborted(signal)
   const canvas = await html2canvas(element, {
     scale: 2,
     backgroundColor: null,
@@ -82,8 +109,9 @@ function pdfOrientation(template: CertificateTemplate) {
   return template.width >= template.height ? 'landscape' as const : 'portrait' as const
 }
 
-function createPdf(template: CertificateTemplate) {
-  return new jsPDF({
+async function createPdf(template: CertificateTemplate) {
+  const Pdf = await loadPdfConstructor()
+  return new Pdf({
     orientation: pdfOrientation(template),
     unit: 'px',
     format: [template.width, template.height],
@@ -92,7 +120,7 @@ function createPdf(template: CertificateTemplate) {
   })
 }
 
-function addCanvasToCurrentPage(pdf: jsPDF, canvas: HTMLCanvasElement, template: CertificateTemplate) {
+function addCanvasToCurrentPage(pdf: PdfInstance, canvas: HTMLCanvasElement, template: CertificateTemplate) {
   const imageData = canvas.toDataURL('image/jpeg', 0.94)
   pdf.addImage(imageData, 'JPEG', 0, 0, template.width, template.height, undefined, 'FAST')
   canvas.width = 1
@@ -122,7 +150,7 @@ export async function exportSinglePdf(
   onProgress?.(0, 1, `Rendering ${label}`)
   const element = await renderRecipient(row, index)
   const canvas = await captureCertificate(element, signal)
-  const pdf = createPdf(template)
+  const pdf = await createPdf(template)
   addCanvasToCurrentPage(pdf, canvas, template)
   throwIfAborted(signal)
   downloadBlob(pdf.output('blob'), `${label}.pdf`)
@@ -142,7 +170,7 @@ export async function exportCombinedPdf(
 
   for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
     throwIfAborted(signal)
-    const pdf = createPdf(template)
+    const pdf = await createPdf(template)
     const part = parts[partIndex]
     const globalOffset = partIndex * EXPORT_LIMITS.combinedPdfPartSize
 
@@ -177,11 +205,12 @@ export async function exportIndividualZip(
 ) {
   if (!rows.length) throw new Error('There are no enabled recipients to export.')
   const parts = chunk(rows, EXPORT_LIMITS.zipPartSize)
+  const Zip = await loadZipConstructor()
   let completed = 0
 
   for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
     throwIfAborted(signal)
-    const zip = new JSZip()
+    const zip = new Zip()
     const folder = zip.folder('certificates') ?? zip
     const part = parts[partIndex]
     const globalOffset = partIndex * EXPORT_LIMITS.zipPartSize
@@ -193,7 +222,7 @@ export async function exportIndividualZip(
       onProgress?.(completed, rows.length, `Creating PDF for ${label}`)
       const element = await renderRecipient(row, globalIndex)
       const canvas = await captureCertificate(element, signal)
-      const pdf = createPdf(template)
+      const pdf = await createPdf(template)
       addCanvasToCurrentPage(pdf, canvas, template)
       const sequence = String(globalIndex + 1).padStart(Math.max(3, String(rows.length).length), '0')
       folder.file(`${sequence}-${label}.pdf`, pdf.output('arraybuffer'))
@@ -203,11 +232,7 @@ export async function exportIndividualZip(
 
     throwIfAborted(signal)
     onProgress?.(completed, rows.length, `Packaging archive ${partIndex + 1} of ${parts.length}`)
-    const blob = await zip.generateAsync({
-      type: 'blob',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
-    })
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
     throwIfAborted(signal)
     const suffix = partSuffix(partIndex, parts.length)
     downloadBlob(blob, `${sanitizeFilename(template.name)}-individual-certificates${suffix}.zip`)

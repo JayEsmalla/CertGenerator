@@ -1,4 +1,3 @@
-import * as mammoth from 'mammoth'
 import { IMPORT_LIMITS } from '../config/limits'
 import type { RecipientDataset, RecipientRow } from '../types/recipients'
 
@@ -191,6 +190,7 @@ function assertFileSize(file: File) {
 
 async function importDocx(file: File): Promise<RecipientDataset> {
   await assertDocxHeader(file)
+  const mammoth = await import('mammoth')
   const arrayBuffer = await file.arrayBuffer()
   const result = await mammoth.convertToHtml({ arrayBuffer })
   if (result.value.length > IMPORT_LIMITS.maxExtractedChars) throw limitError('The Word document expands to too much text.')
