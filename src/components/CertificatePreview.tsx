@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { CertificateElement, CertificateTemplate } from '../types/certificate'
 import type { RecipientValues } from '../types/recipients'
-import { splitMergeText } from '../utils/mergeFields'
+import { getTemplateMergeValues, splitMergeText } from '../utils/mergeFields'
 
 type ElementPatch = Partial<Pick<CertificateElement, 'x' | 'y' | 'width' | 'height'>>
 
@@ -53,6 +53,7 @@ export default function CertificatePreview({
 }: CertificatePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
+  const mergeValues = getTemplateMergeValues(template, data, compact)
 
   const startDrag = (
     mode: DragState['mode'],
@@ -158,13 +159,19 @@ export default function CertificatePreview({
             )}
 
             {element.type === 'image' && (
-              <img
-                className="image-render"
-                src={element.src}
-                alt={element.name}
-                draggable={false}
-                style={{ objectFit: element.objectFit, borderRadius: element.borderRadius }}
-              />
+              element.src ? (
+                <img
+                  className="image-render"
+                  src={element.src}
+                  alt={element.name}
+                  draggable={false}
+                  style={{ objectFit: element.objectFit, borderRadius: element.borderRadius }}
+                />
+              ) : (interactive || compact) ? (
+                <div className="image-slot-placeholder" style={{ borderRadius: element.borderRadius }}>
+                  <span>{element.placeholderLabel ?? element.name}</span>
+                </div>
+              ) : null
             )}
 
             {element.type === 'text' && (
@@ -183,7 +190,7 @@ export default function CertificatePreview({
                 }}
               >
                 <span className="text-content">
-                  {splitMergeText(element.text, data).map((part, index) => (
+                  {splitMergeText(element.text, mergeValues).map((part, index) => (
                     part.type === 'field' && !part.resolved
                       ? <span className="merge-placeholder" key={`${part.field}-${index}`}>{part.value}</span>
                       : <span key={`${part.type}-${index}`}>{part.value}</span>

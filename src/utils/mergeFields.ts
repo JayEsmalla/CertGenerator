@@ -6,21 +6,33 @@ const mergePattern = /{{\s*([a-zA-Z0-9_.-]+)\s*}}/g
 const fieldLabels: Record<string, string> = {
   name: 'Recipient name',
   organization: 'Organization',
+  organization_tagline: 'Organization tagline',
   event: 'Event',
   award: 'Award',
   role: 'Role',
   date: 'Date',
+  academic_year: 'Academic year',
+  certificate_number: 'Certificate number',
   signatory: 'Signatory',
+  signatory_title: 'Signatory title',
+  secondary_signatory: 'Second signatory',
+  secondary_signatory_title: 'Second signatory title',
 }
 
 const fieldEditorTokens: Record<string, string> = {
   name: 'Name',
   organization: 'Organization',
+  organization_tagline: 'OrganizationTagline',
   event: 'Event',
   award: 'Award',
   role: 'Role',
   date: 'Date',
+  academic_year: 'AcademicYear',
+  certificate_number: 'CertificateNumber',
   signatory: 'Signatory',
+  signatory_title: 'SignatoryTitle',
+  secondary_signatory: 'SecondSignatory',
+  secondary_signatory_title: 'SecondSignatoryTitle',
 }
 
 const tokenToField = Object.fromEntries(
@@ -57,6 +69,13 @@ export type MergeTextPart = {
   value: string
   field?: string
   resolved?: boolean
+}
+
+export function getTemplateMergeValues(template: CertificateTemplate, values?: RecipientValues, useSample = false): RecipientValues | undefined {
+  const defaults = template.defaults ?? {}
+  const sample = useSample ? template.sampleData ?? {} : {}
+  const merged = { ...defaults, ...sample, ...(values ?? {}) }
+  return Object.keys(merged).length ? merged : undefined
 }
 
 export function splitMergeText(text: string, values?: RecipientValues): MergeTextPart[] {

@@ -1,6 +1,37 @@
 export type CertificateOrientation = 'landscape' | 'portrait'
-export type CertificateCategory = 'Academic' | 'Corporate' | 'Modern' | 'Community' | 'Elegant' | 'Event'
+export type CertificateCategory = 'Academic' | 'Corporate' | 'Modern' | 'Community' | 'Elegant' | 'Event' | 'Institutional' | 'Healthcare' | 'Training' | 'Award'
 export type TextAlign = 'left' | 'center' | 'right'
+export type CertificateQuickFieldGroup = 'organization' | 'certificate' | 'signatories'
+export type CertificateQuickFieldKind = 'text' | 'textarea' | 'date'
+export type CertificateQuickFieldSource = 'merge' | 'element'
+
+export type CertificateQuickField = {
+  key: string
+  label: string
+  group: CertificateQuickFieldGroup
+  kind?: CertificateQuickFieldKind
+  source?: CertificateQuickFieldSource
+  elementId?: string
+  placeholder?: string
+  helper?: string
+  required?: boolean
+}
+
+export type CertificateImageSlot = {
+  key: string
+  label: string
+  group: CertificateQuickFieldGroup
+  elementId: string
+  helper?: string
+  required?: boolean
+}
+
+export type CertificatePalette = {
+  primary: string
+  secondary: string
+  accent: string
+  background: string
+}
 
 export type CertificateElementBase = {
   id: string
@@ -44,9 +75,11 @@ export type CertificateLineElement = CertificateElementBase & {
 
 export type CertificateImageElement = CertificateElementBase & {
   type: 'image'
-  src: string
+  src?: string
   objectFit: 'contain' | 'cover' | 'fill'
   borderRadius?: number
+  slotKey?: string
+  placeholderLabel?: string
 }
 
 export type CertificateElement = CertificateTextElement | CertificateShapeElement | CertificateLineElement | CertificateImageElement
@@ -62,4 +95,12 @@ export type CertificateTemplate = {
   background: string
   accent: string
   elements: CertificateElement[]
+  purpose?: string
+  style?: string
+  tags?: string[]
+  palette?: CertificatePalette
+  defaults?: Record<string, string>
+  sampleData?: Record<string, string>
+  quickFields?: CertificateQuickField[]
+  imageSlots?: CertificateImageSlot[]
 }

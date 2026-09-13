@@ -26,7 +26,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
   const enabledRows = useMemo(() => dataset.rows.filter((row) => row.enabled), [dataset.rows])
   const previewRow = enabledRows[Math.min(previewIndex, Math.max(enabledRows.length - 1, 0))]
   const requiredFields = useMemo(() => getTemplateMergeFields(template), [template])
-  const missingFields = requiredFields.filter((field) => !dataset.fields.includes(field))
+  const missingFields = requiredFields.filter((field) => !dataset.fields.includes(field) && !template.defaults?.[field])
 
   const handleFile = async (file?: File) => {
     if (!file) return
