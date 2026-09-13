@@ -240,10 +240,12 @@ export async function loadProject() {
   }
 }
 
+export type SaveReceipt = { revision: number; updatedAt: number }
+
 let saveQueue: Promise<void> = Promise.resolve()
 
 export function saveProject(project: Omit<PersistedProject, 'version' | 'revision' | 'updatedAt'>) {
-  const operation = async () => {
+  const operation = async (): Promise<SaveReceipt> => {
     const prepared = await prepareTemplateForStorage(project.template)
     const database = await openDatabase()
     try {
@@ -253,22 +255,38 @@ export function saveProject(project: Omit<PersistedProject, 'version' | 'revisio
       const current = normalizeProject(currentValue)
       if (current) projectStore.put(current, BACKUP_PROJECT_KEY)
       for (const asset of prepared.assets) transaction.objectStore(ASSET_STORE).put(asset)
-      projectStore.put({
+      const saved: PersistedProject = {
         ...project,
         template: prepared.template,
         version: 2,
         revision: (current?.revision ?? 0) + 1,
         updatedAt: Date.now(),
-      } satisfies PersistedProject, CURRENT_PROJECT_KEY)
+      }
+      projectStore.put(saved, CURRENT_PROJECT_KEY)
       await transactionDone(transaction)
+      return { revision: saved.revision, updatedAt: saved.updatedAt }
     } finally {
       database.close()
     }
   }
 
   const queued = saveQueue.then(operation, operation)
-  saveQueue = queued.catch(() => undefined)
+  saveQueue = queued.then(() => undefined, () => undefined)
   return queued
+}
+
+export async function loadLastGoodProject() {
+  const database = await openDatabase()
+  try {
+    const transaction = database.transaction(PROJECT_STORE, 'readonly')
+    const value = await requestResult(transaction.objectStore(PROJECT_STORE).get(BACKUP_PROJECT_KEY))
+    await transactionDone(transaction)
+    const project = normalizeProject(value)
+    if (!project) return null
+    return { ...project, template: await hydrateTemplateAssets(project.template) }
+  } finally {
+    database.close()
+  }
 }
 
 export async function clearProject() {
@@ -320,6 +338,58 @@ export async function deleteCustomTemplate(id: string) {
   } finally {
     database.close()
   }
+}
+
+export async function clearAllLocalData() {
+  await saveQueue.catch(() => undefined)
+  return new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error ?? new Error('Could not clear local CertStudio data.'))
+    request.onblocked = () => reject(new Error('Local data is open in another CertStudio tab. Close other tabs and try again.'))
+  })
+}
+
+export type ProjectBackup = {
+  format: 'certstudio-project-backup'
+  version: 1
+  exportedAt: string
+  project: Omit<PersistedProject, 'version' | 'revision' | 'updatedAt'>
+}
+
+export function createProjectBackup(project: ProjectBackup['project']): ProjectBackup {
+  return { format: 'certstudio-project-backup', version: 1, exportedAt: new Date().toISOString(), project: structuredClone(project) }
+}
+
+export function downloadProjectBackup(project: ProjectBackup['project']) {
+  const backup = createProjectBackup(project)
+  const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `certstudio-backup-${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 2_000)
+}
+
+export async function readProjectBackup(file: File) {
+  if (!file.size || file.size > 30 * 1024 * 1024) throw new Error('Backup files must be between 1 byte and 30 MB.')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(await file.text())
+  } catch {
+    throw new Error('This is not a valid CertStudio JSON backup.')
+  }
+  if (!isObject(parsed) || parsed.format !== 'certstudio-project-backup' || parsed.version !== 1 || !isObject(parsed.project)) {
+    throw new Error('This backup format is not supported.')
+  }
+  const project = parsed.project
+  if (!isWorkflowStep(project.activeStep) || !isTemplate(project.template) || !isRecipientDataset(project.recipients)) {
+    throw new Error('The backup contains invalid or incomplete project data.')
+  }
+  return { activeStep: project.activeStep, template: project.template, recipients: project.recipients } satisfies ProjectBackup['project']
 }
 
 export async function getStorageHealth(): Promise<StorageHealth> {
