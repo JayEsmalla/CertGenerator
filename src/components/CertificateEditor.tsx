@@ -302,6 +302,7 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
 
             {selectedElement.type === 'shape' && (
               <>
+                <div className="property-section-heading"><span>Appearance</span><small>Style this shape</small></div>
                 <label>Fill<div className="color-control"><input type="color" value={selectedElement.fill === 'transparent' ? '#ffffff' : selectedElement.fill} onChange={(event) => patchElement(selectedElement.id, { fill: event.target.value } as Partial<CertificateShapeElement>)} /><input value={selectedElement.fill} onChange={(event) => patchElement(selectedElement.id, { fill: event.target.value } as Partial<CertificateShapeElement>)} /></div></label>
                 <label>Stroke<div className="color-control"><input type="color" value={selectedElement.stroke ?? '#000000'} onChange={(event) => patchElement(selectedElement.id, { stroke: event.target.value } as Partial<CertificateShapeElement>)} /><input value={selectedElement.stroke ?? ''} placeholder="none" onChange={(event) => patchElement(selectedElement.id, { stroke: event.target.value || undefined } as Partial<CertificateShapeElement>)} /></div></label>
                 <div className="property-grid two"><label>Stroke width<input type="number" min="0" value={selectedElement.strokeWidth ?? 0} onChange={(event) => patchElement(selectedElement.id, { strokeWidth: numericValue(event.target.value) } as Partial<CertificateShapeElement>)} /></label><label>Corner radius<input type="number" min="0" value={selectedElement.borderRadius ?? 0} onChange={(event) => patchElement(selectedElement.id, { borderRadius: numericValue(event.target.value) } as Partial<CertificateShapeElement>)} /></label></div>
@@ -309,14 +310,18 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
             )}
 
             {selectedElement.type === 'line' && (
-              <div className="property-grid two">
+              <>
+                <div className="property-section-heading"><span>Appearance</span><small>Style this line</small></div>
+                <div className="property-grid two">
                 <label>Color<input type="color" value={selectedElement.color} onChange={(event) => patchElement(selectedElement.id, { color: event.target.value } as Partial<CertificateLineElement>)} /></label>
                 <label>Thickness<input type="number" min="1" max="40" value={selectedElement.thickness} onChange={(event) => patchElement(selectedElement.id, { thickness: numericValue(event.target.value, 1) } as Partial<CertificateLineElement>)} /></label>
-              </div>
+                </div>
+              </>
             )}
 
             {selectedElement.type === 'image' && (
               <>
+                <div className="property-section-heading"><span>Image</span><small>Replace or fit this asset</small></div>
                 <div className="image-property-preview"><img src={selectedElement.src} alt={selectedElement.name} /></div>
                 <button className="replace-image-button" type="button" onClick={() => replaceImageInputRef.current?.click()}>Replace image</button>
                 <input ref={replaceImageInputRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { const file = event.target.files?.[0]; if (file) addImageFromFile(file, selectedElement.id); event.currentTarget.value = '' }} />
