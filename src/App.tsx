@@ -53,24 +53,59 @@ function TemplatesPanel({
   onUseTemplate: (template: CertificateTemplate) => void
   onDeleteTemplate: (template: CertificateTemplate) => void
 }) {
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('All')
+  const categories = useMemo(() => ['All', ...Array.from(new Set(templates.map((template) => template.category)))], [templates])
+  const visibleTemplates = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return templates.filter((template) => {
+      const matchesCategory = category === 'All' || template.category === category
+      if (!matchesCategory) return false
+      if (!normalizedQuery) return true
+      const searchable = [template.name, template.category, template.description, template.purpose, template.style, ...(template.tags ?? [])]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return searchable.includes(normalizedQuery)
+    })
+  }, [category, query, templates])
+
   return (
     <section className="template-stage">
       <div className="template-stage-header">
         <div>
           <div className="eyebrow">Template library</div>
-          <h2>Choose a design to make your own.</h2>
-          <p>Starter designs and templates you save from the editor live here. Content, colors, images, positions, and merge fields remain fully editable.</p>
+          <h2>Choose a design that is already presentation-ready.</h2>
+          <p>Pick the closest certificate for your organization, replace the essential details, and generate. Every official template is still fully editable when you need deeper customization.</p>
         </div>
-        <div className="template-count"><strong>{templates.length}</strong><span>available templates</span></div>
+        <div className="template-count"><strong>{visibleTemplates.length}</strong><span>{visibleTemplates.length === templates.length ? 'available templates' : `of ${templates.length} templates`}</span></div>
       </div>
-      <TemplateGallery
-        templates={templates}
-        selectedId={selectedTemplate.id}
-        customTemplateIds={customTemplateIds}
-        onSelect={onSelect}
-        onUseTemplate={onUseTemplate}
-        onDeleteTemplate={onDeleteTemplate}
-      />
+
+      <div className="template-browser-controls">
+        <label className="template-search">
+          <span>⌕</span>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by purpose, style, or template name" />
+          {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear template search">×</button>}
+        </label>
+        <div className="template-category-filter" aria-label="Filter templates by category">
+          {categories.map((item) => (
+            <button type="button" key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>
+          ))}
+        </div>
+      </div>
+
+      {visibleTemplates.length ? (
+        <TemplateGallery
+          templates={visibleTemplates}
+          selectedId={selectedTemplate.id}
+          customTemplateIds={customTemplateIds}
+          onSelect={onSelect}
+          onUseTemplate={onUseTemplate}
+          onDeleteTemplate={onDeleteTemplate}
+        />
+      ) : (
+        <div className="template-empty-results"><strong>No matching templates.</strong><span>Try another keyword or choose a different category.</span></div>
+      )}
     </section>
   )
 }

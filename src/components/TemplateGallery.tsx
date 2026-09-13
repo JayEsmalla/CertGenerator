@@ -40,6 +40,10 @@ export default function TemplateGallery({
                 <h3>{template.name}</h3>
               </div>
               <p>{template.description}</p>
+              <div className="template-meta-row">
+                <span>{template.style ?? 'Custom design'}</span>
+                <span>{template.orientation}</span>
+              </div>
               <div className="template-card-actions">
                 <button
                   type="button"
