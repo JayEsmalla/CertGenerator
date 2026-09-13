@@ -1,6 +1,8 @@
 import { useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { CertificateElement, CertificateTemplate } from '../types/certificate'
+import type { RecipientValues } from '../types/recipients'
+import { resolveMergeFields } from '../utils/mergeFields'
 
 type ElementPatch = Partial<Pick<CertificateElement, 'x' | 'y' | 'width' | 'height'>>
 
@@ -36,6 +38,7 @@ type CertificatePreviewProps = {
   selectedElementId?: string | null
   onSelectElement?: (id: string | null) => void
   onTransformElement?: (id: string, patch: ElementPatch) => void
+  data?: RecipientValues
 }
 
 export default function CertificatePreview({
@@ -46,6 +49,7 @@ export default function CertificatePreview({
   selectedElementId,
   onSelectElement,
   onTransformElement,
+  data,
 }: CertificatePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -168,7 +172,7 @@ export default function CertificatePreview({
                   textTransform: element.uppercase ? 'uppercase' : undefined,
                 }}
               >
-                {element.text}
+                {resolveMergeFields(element.text, data)}
               </div>
             )}
 

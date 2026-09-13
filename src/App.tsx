@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import CertificateEditor from './components/CertificateEditor'
+import RecipientsPanel from './components/RecipientsPanel'
 import TemplateGallery from './components/TemplateGallery'
 import { defaultTemplate, starterTemplates } from './data/templates'
+import { emptyRecipientDataset } from './types/recipients'
 import type { CertificateTemplate } from './types/certificate'
+import type { RecipientDataset } from './types/recipients'
 
 type WorkflowStep = 'templates' | 'editor' | 'recipients' | 'generate'
 
@@ -37,33 +40,23 @@ function TemplatesPanel({
         <div>
           <div className="eyebrow">Starter library</div>
           <h2>Choose a design to make your own.</h2>
-          <p>
-            Every design is a reusable certificate document. Content, colors, positions, and merge fields
-            are stored as template data rather than fixed page markup.
-          </p>
+          <p>Every design is a reusable certificate document. Content, colors, positions, and merge fields are stored as template data rather than fixed page markup.</p>
         </div>
-        <div className="template-count">
-          <strong>{starterTemplates.length}</strong>
-          <span>starter templates</span>
-        </div>
+        <div className="template-count"><strong>{starterTemplates.length}</strong><span>starter templates</span></div>
       </div>
-      <TemplateGallery
-        templates={starterTemplates}
-        selectedId={selectedTemplate.id}
-        onSelect={onSelect}
-        onUseTemplate={onUseTemplate}
-      />
+      <TemplateGallery templates={starterTemplates} selectedId={selectedTemplate.id} onSelect={onSelect} onUseTemplate={onUseTemplate} />
     </section>
   )
 }
 
-function PlaceholderPanel({ step }: { step: StepDefinition }) {
+function GeneratePlaceholder({ dataset }: { dataset: RecipientDataset }) {
+  const enabledCount = dataset.rows.filter((row) => row.enabled).length
   return (
     <section className="stage-card placeholder-stage">
-      <div className="placeholder-icon">{step.icon}</div>
-      <div className="eyebrow">Next workflow stage</div>
-      <h2>{step.label}</h2>
-      <p>{step.description}. This surface is ready for the next implementation stage.</p>
+      <div className="placeholder-icon">↓</div>
+      <div className="eyebrow">Generation pipeline</div>
+      <h2>{enabledCount ? `${enabledCount} certificates ready.` : 'Generate'}</h2>
+      <p>Recipient merging is connected. Individual PDF, combined PDF, and ZIP export are the next implementation milestone.</p>
     </section>
   )
 }
@@ -71,7 +64,7 @@ function PlaceholderPanel({ step }: { step: StepDefinition }) {
 export default function App() {
   const [activeStep, setActiveStep] = useState<WorkflowStep>('templates')
   const [selectedTemplate, setSelectedTemplate] = useState<CertificateTemplate>(() => cloneTemplate(defaultTemplate))
-  const selectedStep = steps.find((step) => step.id === activeStep) ?? steps[0]
+  const [recipients, setRecipients] = useState<RecipientDataset>(emptyRecipientDataset)
 
   const useTemplate = (template: CertificateTemplate) => {
     setSelectedTemplate(cloneTemplate(template))
@@ -80,6 +73,7 @@ export default function App() {
 
   const startNewProject = () => {
     setSelectedTemplate(cloneTemplate(defaultTemplate))
+    setRecipients(emptyRecipientDataset)
     setActiveStep('templates')
   }
 
@@ -88,44 +82,24 @@ export default function App() {
       <header className="app-header">
         <div className="brand-block">
           <div className="brand-mark" aria-hidden="true">C</div>
-          <div>
-            <h1>CertStudio</h1>
-            <p>Design once. Generate for everyone.</p>
-          </div>
+          <div><h1>CertStudio</h1><p>Design once. Generate for everyone.</p></div>
         </div>
-        <div className="header-actions">
-          <span className="local-badge">Local workspace</span>
-          <button className="ghost-action" type="button" onClick={startNewProject}>New project</button>
-        </div>
+        <div className="header-actions"><span className="local-badge">Local workspace</span><button className="ghost-action" type="button" onClick={startNewProject}>New project</button></div>
       </header>
 
       <nav className="workflow-nav" aria-label="Certificate workflow">
         {steps.map((step, index) => (
-          <button
-            type="button"
-            key={step.id}
-            className={activeStep === step.id ? 'workflow-step active' : 'workflow-step'}
-            onClick={() => setActiveStep(step.id)}
-          >
-            <span className="step-index">{index + 1}</span>
-            <span>
-              <strong>{step.label}</strong>
-              <small>{step.description}</small>
-            </span>
+          <button type="button" key={step.id} className={activeStep === step.id ? 'workflow-step active' : 'workflow-step'} onClick={() => setActiveStep(step.id)}>
+            <span className="step-index">{index + 1}</span><span><strong>{step.label}</strong><small>{step.description}</small></span>
           </button>
         ))}
       </nav>
 
       <main className="app-main">
-        {activeStep === 'templates' && (
-          <TemplatesPanel
-            selectedTemplate={selectedTemplate}
-            onSelect={(template) => setSelectedTemplate(cloneTemplate(template))}
-            onUseTemplate={useTemplate}
-          />
-        )}
+        {activeStep === 'templates' && <TemplatesPanel selectedTemplate={selectedTemplate} onSelect={(template) => setSelectedTemplate(cloneTemplate(template))} onUseTemplate={useTemplate} />}
         {activeStep === 'editor' && <CertificateEditor template={selectedTemplate} onChange={setSelectedTemplate} />}
-        {(activeStep === 'recipients' || activeStep === 'generate') && <PlaceholderPanel step={selectedStep} />}
+        {activeStep === 'recipients' && <RecipientsPanel template={selectedTemplate} dataset={recipients} onChange={setRecipients} onContinue={() => setActiveStep('generate')} />}
+        {activeStep === 'generate' && <GeneratePlaceholder dataset={recipients} />}
       </main>
     </div>
   )
