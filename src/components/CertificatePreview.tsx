@@ -294,12 +294,13 @@ export default function CertificatePreview({
               />
             )}
 
-            {element.type === 'image' && (
-              element.src ? (
+            {element.type === 'image' && (() => {
+              const imageSource = element.src ?? (compact ? element.sampleSrc : undefined)
+              return imageSource ? (
                 <img
                   className="image-render"
-                  src={element.src}
-                  alt={element.name}
+                  src={imageSource}
+                  alt={compact && !element.src ? `${element.name} sample` : element.name}
                   draggable={false}
                   style={{ objectFit: element.objectFit, borderRadius: element.borderRadius }}
                 />
@@ -308,7 +309,7 @@ export default function CertificatePreview({
                   <span>{element.placeholderLabel ?? element.name}</span>
                 </div>
               ) : null
-            )}
+            })()}
 
             {element.type === 'text' && <CertificateTextRender element={element} template={template} mergeValues={mergeValues} />}
 

@@ -85,6 +85,35 @@ function frame(id: string, stroke: string, inset: number, width = 2): Certificat
   return shape(id, 'Decorative frame', inset, inset, W - inset * 2, H - inset * 2, 'transparent', { stroke, strokeWidth: width, locked: true })
 }
 
+function svgDataUri(svg: string) {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
+}
+
+const sampleBrandMarks: Record<string, { initials: string; primary: string; accent: string }> = {
+  academic: { initials: 'RA', primary: '#263247', accent: '#a47b27' },
+  corp: { initials: 'NS', primary: '#0f172a', accent: '#38bdf8' },
+  modern: { initials: 'LC', primary: '#131827', accent: '#6d5dfc' },
+  community: { initials: 'GF', primary: '#154d3b', accent: '#d7b96b' },
+  plum: { initials: 'AF', primary: '#4d2945', accent: '#d5b56b' },
+  event: { initials: 'DT', primary: '#342f3c', accent: '#ee5f50' },
+  institutional: { initials: 'CGD', primary: '#17375f', accent: '#b38b35' },
+  health: { initials: 'SH', primary: '#163b55', accent: '#0ea5a4' },
+  training: { initials: 'NL', primary: '#122a3f', accent: '#22a06b' },
+  speaker: { initials: 'ID', primary: '#503c49', accent: '#c65a73' },
+  volunteer: { initials: 'BY', primary: '#31506b', accent: '#ef8b3d' },
+  award: { initials: 'RI', primary: '#16223d', accent: '#d6a32d' },
+}
+
+function sampleAsset(id: string, label: string) {
+  const prefix = id.split('-')[0]
+  const brand = sampleBrandMarks[prefix] ?? { initials: 'CS', primary: '#263247', accent: '#7c6cff' }
+  if (/signature/i.test(label)) {
+    return svgDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 70"><path d="M12 48 C34 8 43 64 62 29 C72 10 76 56 91 34 C104 15 110 55 127 31 C137 17 145 45 158 35 C171 25 178 30 208 26" fill="none" stroke="${brand.primary}" stroke-width="3.2" stroke-linecap="round"/><path d="M38 55 C75 60 121 58 188 51" fill="none" stroke="${brand.accent}" stroke-width="1.4" stroke-linecap="round" opacity=".7"/></svg>`)
+  }
+  const isSeal = /seal|crest/i.test(label)
+  return svgDataUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="#fff" stroke="${brand.primary}" stroke-width="4"/><circle cx="60" cy="60" r="43" fill="${brand.primary}"/><circle cx="60" cy="60" r="36" fill="none" stroke="${brand.accent}" stroke-width="2" opacity=".9"/>${isSeal ? `<path d="M60 30l7 15 16 2-12 11 3 16-14-8-14 8 3-16-12-11 16-2z" fill="${brand.accent}" opacity=".9"/>` : ''}<text x="60" y="${isSeal ? 94 : 69}" text-anchor="middle" font-family="Georgia,serif" font-size="${brand.initials.length > 2 ? 18 : 24}" font-weight="700" fill="${isSeal ? brand.primary : '#fff'}">${brand.initials}</text></svg>`)
+}
+
 function imageSlot(
   id: string,
   name: string,
@@ -101,7 +130,7 @@ function imageSlot(
     : /seal/i.test(label)
       ? 'OFFICIAL SEAL'
       : 'YOUR LOGO'
-  return { id, name, type: 'image', slotKey, placeholderLabel, x, y, width, height, objectFit: 'contain', borderRadius }
+  return { id, name, type: 'image', slotKey, placeholderLabel, sampleSrc: sampleAsset(id, label), x, y, width, height, objectFit: 'contain', borderRadius }
 }
 
 function mergeField(key: string, label: string, group: CertificateQuickField['group'], placeholder: string, required = true): CertificateQuickField {

@@ -76,7 +76,7 @@ export function getTemplateMergeValues(template: CertificateTemplate, values?: R
     Object.entries(template.defaults ?? {}).filter(([, value]) => value !== undefined && value.trim() !== ''),
   )
   const presentationValues = useSample
-    ? (template.placeholderData ?? template.sampleData ?? {})
+    ? (template.sampleData ?? template.placeholderData ?? {})
     : values === undefined
       ? (template.placeholderData ?? {})
       : {}
