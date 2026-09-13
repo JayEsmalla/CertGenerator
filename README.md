@@ -6,7 +6,7 @@ The original single-certificate HTML prototype has been rebuilt with **React + T
 
 ## Workflow
 
-1. **Templates** — choose from six starter designs or a custom template saved locally.
+1. **Templates** — choose from the presentation-ready template library or a custom template saved locally.
 2. **Editor** — customize text, shapes, lines, uploaded images, typography, colors, position, size, rotation, opacity, locking, and layer order.
 3. **Recipients** — import recipient data, review every row, rename/map fields, disable unwanted records, and preview merged certificates.
 4. **Generate** — export a selected recipient PDF, one combined multi-page PDF, or a ZIP containing individual PDFs.
@@ -72,7 +72,7 @@ Available outputs:
 ## Local development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -86,7 +86,16 @@ npm run build
 ## Main browser-side libraries
 
 - React + TypeScript + Vite
-- Mammoth for DOCX extraction
-- html2canvas for certificate rendering
-- jsPDF for PDF generation
-- JSZip for individual-certificate archives
+- Mammoth for DOCX extraction (lazy-loaded)
+- html2canvas for certificate rendering (lazy-loaded)
+- jsPDF for PDF generation (lazy-loaded)
+- JSZip for individual-certificate archives (lazy-loaded)
+- Self-hosted Fontsource packages for Inter, DM Sans, and DM Serif Display
+
+## Production hardening
+
+- Use **Node 22.12+** and `npm ci` so deployments use the committed lockfile.
+- CertStudio targets modern browsers with IndexedDB, Web Crypto, ResizeObserver, structured cloning, and CSS container queries. Unsupported browsers receive a capability message instead of a partially working editor.
+- `public/_headers` defines recommended CSP/security headers plus immutable caching for hashed `/assets/*` files and revalidation for `index.html`. If your host does not support `_headers`, configure equivalent headers in that platform.
+- CertStudio intentionally has **no service worker**. Hashed static assets may be cached long-term, but the HTML shell revalidates so new deployments do not get trapped behind a stale application cache.
+- Project data remains local to the browser unless the user explicitly downloads a project backup.
