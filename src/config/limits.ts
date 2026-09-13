@@ -14,5 +14,10 @@ export const IMAGE_LIMITS = {
   targetDimension: 4_096,
 } as const
 
+export const EXPORT_LIMITS = {
+  combinedPdfPartSize: 250,
+  zipPartSize: 100,
+} as const
+
 export const SUPPORTED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 export const IMAGE_ACCEPT = SUPPORTED_IMAGE_MIME_TYPES.join(',')

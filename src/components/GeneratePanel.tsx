@@ -4,11 +4,11 @@ import {
   exportCombinedPdf,
   exportIndividualZip,
   exportSinglePdf,
-  type ExportTarget,
+  type RenderRecipient,
 } from '../services/exportCertificates'
 import { analyzeRecipientIntegrity } from '../services/recipientValidation'
 import type { CertificateTemplate } from '../types/certificate'
-import type { RecipientDataset } from '../types/recipients'
+import type { RecipientDataset, RecipientRow } from '../types/recipients'
 
 type GeneratePanelProps = {
   template: CertificateTemplate
@@ -24,6 +24,10 @@ type ProgressState = {
   label: string
 }
 
+function nextPaint() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
 export default function GeneratePanel({ template, dataset, onBack }: GeneratePanelProps) {
   const enabledRows = useMemo(() => dataset.rows.filter((row) => row.enabled), [dataset.rows])
   const integrity = useMemo(() => analyzeRecipientIntegrity(template, dataset), [dataset, template])
@@ -31,21 +35,26 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
   const [activeExport, setActiveExport] = useState<ExportMode>(null)
   const [progress, setProgress] = useState<ProgressState>({ completed: 0, total: 0, label: '' })
   const [error, setError] = useState('')
-  const renderNodes = useRef(new Map<string, HTMLDivElement>())
+  const [renderRow, setRenderRow] = useState<RecipientRow | null>(null)
+  const renderNode = useRef<HTMLDivElement>(null)
+  const abortController = useRef<AbortController | null>(null)
 
   const selectedRow = enabledRows.find((row) => row.id === selectedId) ?? enabledRows[0]
 
-  const targets = (): ExportTarget[] => {
-    const readyTargets: ExportTarget[] = []
-    enabledRows.forEach((row, index) => {
-      const element = renderNodes.current.get(row.id)
-      if (element) readyTargets.push({ row, index, element })
-    })
-    return readyTargets
+  const renderRecipient: RenderRecipient = async (row) => {
+    setRenderRow(row)
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await nextPaint()
+      const node = renderNode.current
+      if (node?.dataset.exportRowId === row.id) return node
+    }
+    throw new Error('The certificate renderer did not become ready. Try the export again.')
   }
 
   const runExport = async (mode: Exclude<ExportMode, null>) => {
-    if (!enabledRows.length) return
+    if (!integrity.canGenerate || !enabledRows.length) return
+    const controller = new AbortController()
+    abortController.current = controller
     setError('')
     setActiveExport(mode)
     setProgress({ completed: 0, total: mode === 'single' ? 1 : enabledRows.length, label: 'Preparing certificate output' })
@@ -53,25 +62,26 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
     const onProgress = (completed: number, total: number, label: string) => setProgress({ completed, total, label })
 
     try {
-      const allTargets = targets()
-      if (allTargets.length !== enabledRows.length) throw new Error('Certificate render targets are not ready yet. Try again in a moment.')
-
       if (mode === 'combined') {
-        await exportCombinedPdf(template, allTargets, onProgress)
+        await exportCombinedPdf(template, enabledRows, renderRecipient, onProgress, controller.signal)
       } else if (mode === 'zip') {
-        await exportIndividualZip(template, allTargets, onProgress)
+        await exportIndividualZip(template, enabledRows, renderRecipient, onProgress, controller.signal)
       } else {
-        const target = allTargets.find((item) => item.row.id === selectedRow?.id)
-        if (!target) throw new Error('Select a recipient before exporting a single certificate.')
-        await exportSinglePdf(template, target, onProgress)
+        if (!selectedRow) throw new Error('Select a recipient before exporting a single certificate.')
+        const index = enabledRows.findIndex((row) => row.id === selectedRow.id)
+        await exportSinglePdf(template, selectedRow, index, renderRecipient, onProgress, controller.signal)
       }
     } catch (exportError) {
-      setError(exportError instanceof Error ? exportError.message : 'Certificate export failed.')
+      const cancelled = exportError instanceof DOMException && exportError.name === 'AbortError'
+      setError(cancelled ? 'Export cancelled.' : exportError instanceof Error ? exportError.message : 'Certificate export failed.')
     } finally {
+      abortController.current = null
+      setRenderRow(null)
       setActiveExport(null)
     }
   }
 
+  const cancelExport = () => abortController.current?.abort()
   const percent = progress.total ? Math.round((progress.completed / progress.total) * 100) : 0
 
   return (
@@ -80,7 +90,7 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
         <div>
           <div className="eyebrow">Generation</div>
           <h2>Export the approved certificate batch.</h2>
-          <p>Every file is rendered from the exact same certificate component used in your preview, with each enabled recipient merged into the selected design.</p>
+          <p>Every file is rendered from the same certificate component used in your preview. Large batches are processed sequentially and automatically split into safe output parts.</p>
         </div>
         <div className="recipient-summary"><strong>{enabledRows.length}</strong><span>certificates ready</span></div>
       </div>
@@ -96,7 +106,7 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
           <div className="generate-preview-card">
             <div className="preview-card-heading">
               <div><strong>Final preview</strong><span>{selectedRow?.values.name || 'Selected recipient'}</span></div>
-              <select value={selectedRow?.id ?? ''} onChange={(event) => setSelectedId(event.target.value)}>
+              <select value={selectedRow?.id ?? ''} onChange={(event) => setSelectedId(event.target.value)} disabled={Boolean(activeExport)}>
                 {enabledRows.map((row, index) => <option key={row.id} value={row.id}>{row.values.name || `Recipient ${index + 1}`}</option>)}
               </select>
             </div>
@@ -113,13 +123,13 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
 
             <button className="export-option" type="button" disabled={Boolean(activeExport)} onClick={() => void runExport('combined')}>
               <span className="export-option-icon">▤</span>
-              <span><strong>Combined PDF</strong><small>One multi-page PDF containing every enabled recipient.</small><em className="export-badge">Recommended</em></span>
+              <span><strong>Combined PDF</strong><small>One PDF per safe batch of up to 250 recipients.</small><em className="export-badge">Recommended</em></span>
               <span>→</span>
             </button>
 
             <button className="export-option" type="button" disabled={Boolean(activeExport)} onClick={() => void runExport('zip')}>
               <span className="export-option-icon">⌑</span>
-              <span><strong>ZIP of individual PDFs</strong><small>A separate PDF for each recipient, packaged in one archive.</small></span>
+              <span><strong>ZIP of individual PDFs</strong><small>Separate PDFs packaged in bounded ZIP parts for reliable browser memory use.</small></span>
               <span>→</span>
             </button>
 
@@ -133,7 +143,10 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
               <div className="export-progress" aria-live="polite">
                 <div><strong>{progress.label}</strong><span>{percent}%</span></div>
                 <div className="progress-track"><div style={{ width: `${percent}%` }} /></div>
-                <small>{progress.total ? `${Math.min(progress.completed, progress.total)} of ${progress.total}` : 'Preparing'}</small>
+                <div className="export-progress-footer">
+                  <small>{progress.total ? `${Math.min(progress.completed, progress.total)} of ${progress.total}` : 'Preparing'}</small>
+                  <button className="cancel-export" type="button" onClick={cancelExport}>Cancel</button>
+                </div>
               </div>
             )}
             {error && <div className="import-error export-error">{error}</div>}
@@ -143,21 +156,18 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
         </div>
       )}
 
-      {integrity.canGenerate && <div className="export-render-host" aria-hidden="true">
-        {enabledRows.map((row) => (
+      {integrity.canGenerate && renderRow && (
+        <div className="export-render-host" aria-hidden="true">
           <div
-            key={row.id}
+            ref={renderNode}
             className="export-render-item"
+            data-export-row-id={renderRow.id}
             style={{ width: template.width, height: template.height }}
-            ref={(node) => {
-              if (node) renderNodes.current.set(row.id, node)
-              else renderNodes.current.delete(row.id)
-            }}
           >
-            <CertificatePreview template={template} data={row.values} />
+            <CertificatePreview template={template} data={renderRow.values} />
           </div>
-        ))}
-      </div>}
+        </div>
+      )}
     </section>
   )
 }
