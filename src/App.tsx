@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import CertificatePreview from './components/CertificatePreview'
+import TemplateGallery from './components/TemplateGallery'
+import { defaultTemplate, starterTemplates } from './data/templates'
+import type { CertificateTemplate } from './types/certificate'
 
 type WorkflowStep = 'templates' | 'editor' | 'recipients' | 'generate'
 
@@ -16,40 +20,42 @@ const steps: StepDefinition[] = [
   { id: 'generate', label: 'Generate', description: 'Export personalized files', icon: '↓' },
 ]
 
-function TemplatesPanel({ onContinue }: { onContinue: () => void }) {
+function TemplatesPanel({
+  selectedTemplate,
+  onSelect,
+  onUseTemplate,
+}: {
+  selectedTemplate: CertificateTemplate
+  onSelect: (template: CertificateTemplate) => void
+  onUseTemplate: (template: CertificateTemplate) => void
+}) {
   return (
-    <section className="stage-card welcome-stage">
-      <div className="eyebrow">CertStudio 2.0</div>
-      <h2>Certificates built for any organization.</h2>
-      <p>
-        Start from a reusable template, make it your own, then merge it with recipient data to create
-        personalized certificates in bulk.
-      </p>
-      <div className="foundation-grid" aria-label="Planned foundation capabilities">
-        <article>
-          <span>01</span>
-          <strong>Reusable templates</strong>
-          <p>Design once and keep layouts independent from recipient information.</p>
-        </article>
-        <article>
-          <span>02</span>
-          <strong>Flexible data</strong>
-          <p>Names, roles, awards, dates, departments, and custom fields can all be merged.</p>
-        </article>
-        <article>
-          <span>03</span>
-          <strong>Batch generation</strong>
-          <p>Preview recipients before creating individual certificates or a combined set.</p>
-        </article>
+    <section className="template-stage">
+      <div className="template-stage-header">
+        <div>
+          <div className="eyebrow">Starter library</div>
+          <h2>Choose a design to make your own.</h2>
+          <p>
+            Every design is now a reusable certificate document. Content, colors, positions, and merge fields
+            are stored as template data rather than fixed page markup.
+          </p>
+        </div>
+        <div className="template-count">
+          <strong>{starterTemplates.length}</strong>
+          <span>starter templates</span>
+        </div>
       </div>
-      <button className="primary-action" onClick={onContinue}>
-        Open editor workspace <span aria-hidden="true">→</span>
-      </button>
+      <TemplateGallery
+        templates={starterTemplates}
+        selectedId={selectedTemplate.id}
+        onSelect={onSelect}
+        onUseTemplate={onUseTemplate}
+      />
     </section>
   )
 }
 
-function EditorFoundation() {
+function EditorFoundation({ template }: { template: CertificateTemplate }) {
   return (
     <section className="editor-shell" aria-label="Certificate editor workspace">
       <aside className="tool-rail">
@@ -62,44 +68,37 @@ function EditorFoundation() {
       <div className="canvas-workspace">
         <div className="canvas-toolbar">
           <div>
-            <strong>Untitled Certificate</strong>
-            <span>A4 · Landscape</span>
+            <strong>{template.name}</strong>
+            <span>A4 · {template.orientation === 'landscape' ? 'Landscape' : 'Portrait'} · {template.elements.length} elements</span>
           </div>
           <div className="toolbar-actions">
             <button type="button" disabled aria-label="Undo">↶</button>
             <button type="button" disabled aria-label="Redo">↷</button>
-            <span>100%</span>
+            <span>Fit</span>
           </div>
         </div>
 
         <div className="canvas-stage">
-          <article className="certificate-placeholder">
-            <div className="certificate-frame" />
-            <div className="certificate-kicker">CERTIFICATE OF RECOGNITION</div>
-            <div className="certificate-copy">This certificate is proudly presented to</div>
-            <div className="certificate-name">{'{{name}}'}</div>
-            <div className="certificate-divider" />
-            <p>
-              In recognition of outstanding participation and contribution to
-              <strong> {'{{event}}'}</strong>.
-            </p>
-            <div className="certificate-signatures">
-              <span>Authorized Signatory</span>
-              <span>Date Issued</span>
-            </div>
-          </article>
+          <CertificatePreview template={template} className="editor-certificate" />
         </div>
       </div>
 
       <aside className="properties-panel">
         <div className="panel-heading">
-          <span>Properties</span>
-          <small>Nothing selected</small>
+          <span>Document</span>
+          <small>{template.category} template</small>
         </div>
-        <div className="empty-properties">
+        <div className="document-properties">
+          <div><span>Canvas</span><strong>{template.width} × {template.height}</strong></div>
+          <div><span>Orientation</span><strong>{template.orientation}</strong></div>
+          <div><span>Elements</span><strong>{template.elements.length}</strong></div>
+          <div><span>Background</span><strong className="color-property"><i style={{ background: template.background }} />{template.background}</strong></div>
+          <div><span>Accent</span><strong className="color-property"><i style={{ background: template.accent }} />{template.accent}</strong></div>
+        </div>
+        <div className="empty-properties compact-empty">
           <div>◇</div>
-          <strong>Select an element</strong>
-          <p>Element-specific controls will appear here as the editor engine is introduced.</p>
+          <strong>Element editing comes next</strong>
+          <p>The template engine is active. The next stage will make individual elements selectable and editable.</p>
         </div>
       </aside>
     </section>
@@ -119,7 +118,13 @@ function PlaceholderPanel({ step }: { step: StepDefinition }) {
 
 export default function App() {
   const [activeStep, setActiveStep] = useState<WorkflowStep>('templates')
+  const [selectedTemplate, setSelectedTemplate] = useState<CertificateTemplate>(defaultTemplate)
   const selectedStep = steps.find((step) => step.id === activeStep) ?? steps[0]
+
+  const useTemplate = (template: CertificateTemplate) => {
+    setSelectedTemplate(template)
+    setActiveStep('editor')
+  }
 
   return (
     <div className="app-shell">
@@ -133,7 +138,7 @@ export default function App() {
         </div>
         <div className="header-actions">
           <span className="local-badge">Local workspace</span>
-          <button className="ghost-action" type="button">New project</button>
+          <button className="ghost-action" type="button" onClick={() => setActiveStep('templates')}>New project</button>
         </div>
       </header>
 
@@ -155,8 +160,14 @@ export default function App() {
       </nav>
 
       <main className="app-main">
-        {activeStep === 'templates' && <TemplatesPanel onContinue={() => setActiveStep('editor')} />}
-        {activeStep === 'editor' && <EditorFoundation />}
+        {activeStep === 'templates' && (
+          <TemplatesPanel
+            selectedTemplate={selectedTemplate}
+            onSelect={setSelectedTemplate}
+            onUseTemplate={useTemplate}
+          />
+        )}
+        {activeStep === 'editor' && <EditorFoundation template={selectedTemplate} />}
         {(activeStep === 'recipients' || activeStep === 'generate') && <PlaceholderPanel step={selectedStep} />}
       </main>
     </div>
