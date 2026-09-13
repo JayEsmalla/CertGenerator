@@ -157,6 +157,16 @@ export default function CertificatePreview({
               />
             )}
 
+            {element.type === 'image' && (
+              <img
+                className="image-render"
+                src={element.src}
+                alt={element.name}
+                draggable={false}
+                style={{ objectFit: element.objectFit, borderRadius: element.borderRadius }}
+              />
+            )}
+
             {element.type === 'text' && (
               <div
                 className="text-render"

@@ -42,7 +42,14 @@ export type CertificateLineElement = CertificateElementBase & {
   thickness: number
 }
 
-export type CertificateElement = CertificateTextElement | CertificateShapeElement | CertificateLineElement
+export type CertificateImageElement = CertificateElementBase & {
+  type: 'image'
+  src: string
+  objectFit: 'contain' | 'cover' | 'fill'
+  borderRadius?: number
+}
+
+export type CertificateElement = CertificateTextElement | CertificateShapeElement | CertificateLineElement | CertificateImageElement
 
 export type CertificateTemplate = {
   id: string
