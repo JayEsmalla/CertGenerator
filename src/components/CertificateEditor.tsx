@@ -14,6 +14,7 @@ import type {
 type CertificateEditorProps = {
   template: CertificateTemplate
   onChange: (template: CertificateTemplate) => void
+  onQuickCustomize?: () => void
 }
 
 const fonts = [
@@ -32,7 +33,7 @@ const numericValue = (value: string, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-export default function CertificateEditor({ template, onChange }: CertificateEditorProps) {
+export default function CertificateEditor({ template, onChange, onQuickCustomize }: CertificateEditorProps) {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
@@ -201,6 +202,7 @@ export default function CertificateEditor({ template, onChange }: CertificateEdi
             {selectedElement && <span className="selection-summary">Editing · {selectedElement.name}</span>}
           </div>
           <div className="toolbar-actions editor-toolbar-actions">
+            {onQuickCustomize && <button className="toolbar-text-action" type="button" onClick={onQuickCustomize}>Quick setup</button>}
             <div className="toolbar-group" aria-label="Layer controls">
               <button type="button" onClick={() => moveLayer('down')} disabled={!selectedElement} title="Send backward" aria-label="Send backward">↓</button>
               <button type="button" onClick={() => moveLayer('up')} disabled={!selectedElement} title="Bring forward" aria-label="Bring forward">↑</button>

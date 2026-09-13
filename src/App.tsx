@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import CertificateEditor from './components/CertificateEditor'
 import GeneratePanel from './components/GeneratePanel'
+import QuickCustomizePanel from './components/QuickCustomizePanel'
 import RecipientsPanel from './components/RecipientsPanel'
 import TemplateGallery from './components/TemplateGallery'
 import { defaultTemplate, starterTemplates } from './data/templates'
@@ -76,6 +77,7 @@ function TemplatesPanel({
 
 export default function App() {
   const [activeStep, setActiveStep] = useState<WorkflowStep>('templates')
+  const [editorMode, setEditorMode] = useState<'quick' | 'advanced'>('quick')
   const [selectedTemplate, setSelectedTemplate] = useState<CertificateTemplate>(() => cloneTemplate(defaultTemplate))
   const [recipients, setRecipients] = useState<RecipientDataset>(emptyRecipientDataset)
   const [customTemplates, setCustomTemplates] = useState<CertificateTemplate[]>([])
@@ -122,6 +124,7 @@ export default function App() {
 
   const useTemplate = (template: CertificateTemplate) => {
     setSelectedTemplate(cloneTemplate(template))
+    setEditorMode(template.quickFields?.length ? 'quick' : 'advanced')
     setActiveStep('editor')
   }
 
@@ -129,6 +132,7 @@ export default function App() {
     void clearProject().catch(() => setSaveState('error'))
     setSelectedTemplate(cloneTemplate(defaultTemplate))
     setRecipients(structuredClone(emptyRecipientDataset))
+    setEditorMode('quick')
     setActiveStep('templates')
     setTemplateNotice('')
   }
@@ -196,7 +200,21 @@ export default function App() {
 
       <main className="app-main">
         {activeStep === 'templates' && <TemplatesPanel templates={availableTemplates} customTemplateIds={customTemplateIds} selectedTemplate={selectedTemplate} onSelect={(template) => setSelectedTemplate(cloneTemplate(template))} onUseTemplate={useTemplate} onDeleteTemplate={(template) => void removeCustomTemplate(template)} />}
-        {activeStep === 'editor' && <CertificateEditor template={selectedTemplate} onChange={setSelectedTemplate} />}
+        {activeStep === 'editor' && editorMode === 'quick' && selectedTemplate.quickFields?.length ? (
+          <QuickCustomizePanel
+            template={selectedTemplate}
+            onChange={setSelectedTemplate}
+            onAdvanced={() => setEditorMode('advanced')}
+            onContinue={() => setActiveStep('recipients')}
+          />
+        ) : null}
+        {activeStep === 'editor' && (editorMode === 'advanced' || !selectedTemplate.quickFields?.length) && (
+          <CertificateEditor
+            template={selectedTemplate}
+            onChange={setSelectedTemplate}
+            onQuickCustomize={selectedTemplate.quickFields?.length ? () => setEditorMode('quick') : undefined}
+          />
+        )}
         {activeStep === 'recipients' && <RecipientsPanel template={selectedTemplate} dataset={recipients} onChange={setRecipients} onContinue={() => setActiveStep('generate')} />}
         {activeStep === 'generate' && <GeneratePanel template={selectedTemplate} dataset={recipients} onBack={() => setActiveStep('recipients')} />}
       </main>

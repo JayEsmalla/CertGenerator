@@ -1,5 +1,7 @@
 import type {
   CertificateElement,
+  CertificatePalette,
+  CertificateQuickField,
   CertificateTemplate,
   CertificateTextElement,
   TextAlign,
@@ -57,6 +59,26 @@ function frame(stroke: string, inset = 34): CertificateElement {
   }
 }
 
+function mergeField(key: string, label: string, group: CertificateQuickField['group'], placeholder: string, required = true): CertificateQuickField {
+  return { key, label, group, source: 'merge', placeholder, required }
+}
+
+function elementField(key: string, label: string, group: CertificateQuickField['group'], elementId: string, placeholder: string): CertificateQuickField {
+  return { key, label, group, source: 'element', elementId, placeholder, required: true }
+}
+
+function premium(details: {
+  purpose: string
+  style: string
+  tags: string[]
+  palette: CertificatePalette
+  sampleData: Record<string, string>
+  quickFields: CertificateQuickField[]
+}): Pick<CertificateTemplate, 'purpose' | 'style' | 'tags' | 'palette' | 'sampleData' | 'defaults' | 'quickFields'> {
+  const defaults = Object.fromEntries(details.quickFields.filter((field) => field.source !== 'element').map((field) => [field.key, '']))
+  return { ...details, defaults }
+}
+
 export const starterTemplates: CertificateTemplate[] = [
   {
     id: 'academic-gold',
@@ -68,6 +90,21 @@ export const starterTemplates: CertificateTemplate[] = [
     orientation: 'landscape',
     background: '#fffaf0',
     accent: '#9d7b2f',
+    ...premium({
+      purpose: 'Academic excellence and achievement',
+      style: 'Formal · Classic · Gold',
+      tags: ['Academic', 'Formal', 'Achievement', 'Gold'],
+      palette: { primary: '#352b1d', secondary: '#68552c', accent: '#9d7b2f', background: '#fffaf0' },
+      sampleData: { name: 'Alexandra Santos', organization: 'RIVERDALE ACADEMY', award: 'Academic Excellence', event: 'Academic Year 2026–2027', date: 'June 20, 2027', signatory: 'Dr. Maria Reyes' },
+      quickFields: [
+        mergeField('organization', 'Organization name', 'organization', 'e.g. Riverdale Academy'),
+        elementField('certificate_title', 'Certificate title', 'certificate', 'academic-title', 'Certificate of Academic Excellence'),
+        mergeField('award', 'Achievement or award', 'certificate', 'e.g. Academic Excellence'),
+        mergeField('event', 'Program or academic year', 'certificate', 'e.g. Academic Year 2026–2027'),
+        mergeField('date', 'Issue date', 'certificate', 'e.g. June 20, 2027'),
+        mergeField('signatory', 'Authorized signatory', 'signatories', 'e.g. Dr. Maria Reyes'),
+      ],
+    }),
     elements: [
       frame('#9d7b2f'),
       frame('#d6bf83', 47),
@@ -91,6 +128,21 @@ export const starterTemplates: CertificateTemplate[] = [
     orientation: 'landscape',
     background: '#f8fafc',
     accent: '#334155',
+    ...premium({
+      purpose: 'Professional training and completion',
+      style: 'Corporate · Structured · Clean',
+      tags: ['Corporate', 'Training', 'Completion', 'Professional'],
+      palette: { primary: '#0f172a', secondary: '#334155', accent: '#38bdf8', background: '#f8fafc' },
+      sampleData: { name: 'Jordan Lim', organization: 'NORTHSTAR SOLUTIONS', event: 'Leadership Development Program', award: 'Program Completion', date: 'September 14, 2026', signatory: 'Andrea Cruz' },
+      quickFields: [
+        mergeField('organization', 'Organization name', 'organization', 'e.g. Northstar Solutions'),
+        elementField('certificate_title', 'Certificate title', 'certificate', 'corp-title', 'Certificate of Completion'),
+        mergeField('event', 'Program or training', 'certificate', 'e.g. Leadership Development Program'),
+        mergeField('award', 'Completion detail', 'certificate', 'e.g. Program Completion'),
+        mergeField('date', 'Issue date', 'certificate', 'e.g. September 14, 2026'),
+        mergeField('signatory', 'Authorized signatory', 'signatories', 'e.g. Andrea Cruz'),
+      ],
+    }),
     elements: [
       { id: 'corp-band', name: 'Left accent band', type: 'shape', x: 0, y: 0, width: 88, height: H, fill: '#1e293b', locked: true },
       { id: 'corp-accent', name: 'Accent bar', type: 'shape', x: 88, y: 0, width: 12, height: H, fill: '#38bdf8', locked: true },
@@ -114,6 +166,21 @@ export const starterTemplates: CertificateTemplate[] = [
     orientation: 'landscape',
     background: '#ffffff',
     accent: '#6d5dfc',
+    ...premium({
+      purpose: 'Modern recognition and contribution',
+      style: 'Modern · Minimal · Contemporary',
+      tags: ['Modern', 'Minimal', 'Recognition', 'Versatile'],
+      palette: { primary: '#111827', secondary: '#6b7280', accent: '#6d5dfc', background: '#ffffff' },
+      sampleData: { name: 'Camille Torres', organization: 'LUMINA CREATIVE CO.', event: 'Innovation Summit 2026', role: 'Project Lead', date: 'September 14, 2026', signatory: 'Miguel Tan' },
+      quickFields: [
+        mergeField('organization', 'Organization name', 'organization', 'e.g. Lumina Creative Co.'),
+        elementField('certificate_title', 'Certificate title', 'certificate', 'modern-title', 'Recognition Certificate'),
+        mergeField('event', 'Event or program', 'certificate', 'e.g. Innovation Summit 2026'),
+        mergeField('role', 'Recipient role', 'certificate', 'e.g. Project Lead'),
+        mergeField('date', 'Issue date', 'certificate', 'e.g. September 14, 2026'),
+        mergeField('signatory', 'Authorized signatory', 'signatories', 'e.g. Miguel Tan'),
+      ],
+    }),
     elements: [
       { id: 'modern-corner', name: 'Top accent', type: 'shape', x: 0, y: 0, width: 1123, height: 16, fill: '#6d5dfc', locked: true },
       text('modern-org', 'Organization', '{{organization}}', 120, 105, 883, 36, 16, '#6b7280', { fontWeight: 700, letterSpacing: 3, uppercase: true }),
@@ -135,6 +202,21 @@ export const starterTemplates: CertificateTemplate[] = [
     orientation: 'landscape',
     background: '#f4fbf7',
     accent: '#17795b',
+    ...premium({
+      purpose: 'Community service and appreciation',
+      style: 'Warm · Institutional · Trustworthy',
+      tags: ['Community', 'NGO', 'Volunteer', 'Appreciation'],
+      palette: { primary: '#164e3d', secondary: '#46675c', accent: '#17795b', background: '#f4fbf7' },
+      sampleData: { name: 'Paolo Mendoza', organization: 'GREENHAVEN COMMUNITY FOUNDATION', event: 'Community Outreach Program', role: 'Volunteer Coordinator', date: 'September 14, 2026', signatory: 'Elena Garcia' },
+      quickFields: [
+        mergeField('organization', 'Organization name', 'organization', 'e.g. Greenhaven Community Foundation'),
+        elementField('certificate_title', 'Certificate title', 'certificate', 'community-title', 'Certificate of Appreciation'),
+        mergeField('role', 'Service or role', 'certificate', 'e.g. Volunteer Coordinator'),
+        mergeField('event', 'Program or initiative', 'certificate', 'e.g. Community Outreach Program'),
+        mergeField('date', 'Issue date', 'certificate', 'e.g. September 14, 2026'),
+        mergeField('signatory', 'Authorized signatory', 'signatories', 'e.g. Elena Garcia'),
+      ],
+    }),
     elements: [
       frame('#17795b', 38),
       { id: 'community-header', name: 'Header panel', type: 'shape', x: 38, y: 38, width: W - 76, height: 116, fill: '#17795b', locked: true },
@@ -157,6 +239,20 @@ export const starterTemplates: CertificateTemplate[] = [
     orientation: 'landscape',
     background: '#fffafd',
     accent: '#6b315d',
+    ...premium({
+      purpose: 'Distinction and executive recognition',
+      style: 'Elegant · Ceremonial · Refined',
+      tags: ['Elegant', 'Award', 'Leadership', 'Distinction'],
+      palette: { primary: '#4d2444', secondary: '#815174', accent: '#6b315d', background: '#fffafd' },
+      sampleData: { name: 'Isabella Navarro', organization: 'THE AURELIA FOUNDATION', award: 'Outstanding Leadership', date: 'September 14, 2026', signatory: 'Victoria Ramos' },
+      quickFields: [
+        mergeField('organization', 'Organization name', 'organization', 'e.g. The Aurelia Foundation'),
+        elementField('certificate_title', 'Certificate title', 'certificate', 'plum-title', 'Award of Distinction'),
+        mergeField('award', 'Award or distinction', 'certificate', 'e.g. Outstanding Leadership'),
+        mergeField('date', 'Issue date', 'certificate', 'e.g. September 14, 2026'),
+        mergeField('signatory', 'Authorized signatory', 'signatories', 'e.g. Victoria Ramos'),
+      ],
+    }),
     elements: [
       frame('#6b315d', 31),
       frame('#d9bfd3', 44),
@@ -180,6 +276,21 @@ export const starterTemplates: CertificateTemplate[] = [
     orientation: 'landscape',
     background: '#fffaf7',
     accent: '#e45b4f',
+    ...premium({
+      purpose: 'Seminar and event participation',
+      style: 'Vibrant · Friendly · Event-ready',
+      tags: ['Event', 'Seminar', 'Participation', 'Workshop'],
+      palette: { primary: '#3e302d', secondary: '#9a4b44', accent: '#e45b4f', background: '#fffaf7' },
+      sampleData: { name: 'Nathaniel Cruz', organization: 'DAVAO TECH COMMUNITY', event: 'Future Skills Summit 2026', role: 'Participant', date: 'September 14, 2026', signatory: 'Katrina Flores' },
+      quickFields: [
+        mergeField('organization', 'Organization name', 'organization', 'e.g. Davao Tech Community'),
+        elementField('certificate_title', 'Certificate title', 'certificate', 'event-title', 'Certificate of Participation'),
+        mergeField('event', 'Event or seminar', 'certificate', 'e.g. Future Skills Summit 2026'),
+        mergeField('role', 'Participation role', 'certificate', 'e.g. Participant'),
+        mergeField('date', 'Issue date', 'certificate', 'e.g. September 14, 2026'),
+        mergeField('signatory', 'Authorized signatory', 'signatories', 'e.g. Katrina Flores'),
+      ],
+    }),
     elements: [
       { id: 'event-circle-one', name: 'Decorative block', type: 'shape', x: 0, y: 0, width: 180, height: 180, fill: '#e45b4f', borderRadius: 0, opacity: 0.95, locked: true },
       { id: 'event-circle-two', name: 'Decorative block', type: 'shape', x: 943, y: 614, width: 180, height: 180, fill: '#f6b455', borderRadius: 0, opacity: 0.9, locked: true },
