@@ -129,7 +129,7 @@ export default function App() {
       .then(([project, templates]) => {
         if (cancelled) return
         setCustomTemplates(templates)
-        if (project?.version === 1) {
+        if (project) {
           setActiveStep(project.activeStep)
           setSelectedTemplate(project.template)
           setRecipients(project.recipients)

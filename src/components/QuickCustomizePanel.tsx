@@ -1,4 +1,5 @@
 import CertificatePreview from './CertificatePreview'
+import { storeImageAsset } from '../services/projectStorage'
 import type {
   CertificateImageElement,
   CertificateQuickField,
@@ -51,24 +52,21 @@ export default function QuickCustomizePanel({ template, onChange, onAdvanced, on
     onChange({ ...template, defaults: { ...(template.defaults ?? {}), [field.key]: value } })
   }
 
-  const patchImageSlot = (elementId: string, src?: string) => {
+  const patchImageSlot = (elementId: string, src?: string, assetId?: string) => {
     onChange({
       ...template,
       elements: template.elements.map((element) => (
         element.id === elementId && element.type === 'image'
-          ? ({ ...element, src } as CertificateImageElement)
+          ? ({ ...element, src, assetId } as CertificateImageElement)
           : element
       )),
     })
   }
 
-  const handleImage = (elementId: string, file?: File) => {
+  const handleImage = async (elementId: string, file?: File) => {
     if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') patchImageSlot(elementId, reader.result)
-    }
-    reader.readAsDataURL(file)
+    const stored = await storeImageAsset(file)
+    patchImageSlot(elementId, stored.src, stored.assetId)
   }
 
   return (
@@ -143,7 +141,7 @@ export default function QuickCustomizePanel({ template, onChange, onAdvanced, on
                           </div>
                           <label className="quick-upload-action">
                             {image?.src ? 'Replace' : 'Upload'}
-                            <input hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { handleImage(slot.elementId, event.target.files?.[0]); event.currentTarget.value = '' }} />
+                            <input hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { void handleImage(slot.elementId, event.target.files?.[0]); event.currentTarget.value = '' }} />
                           </label>
                           {image?.src && <button className="quick-remove-image" type="button" onClick={() => patchImageSlot(slot.elementId)}>Remove</button>}
                         </div>

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import CertificatePreview from './CertificatePreview'
+import { storeImageAsset } from '../services/projectStorage'
 import { fromEditorMergeText, getMergeFieldEditorToken, getMergeFieldLabel, toEditorMergeText } from '../utils/mergeFields'
 import type {
   CertificateElement,
@@ -94,35 +95,31 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
     setSelectedElementId(id)
   }
 
-  const addImageFromFile = (file: File, replaceId?: string) => {
+  const addImageFromFile = async (file: File, replaceId?: string) => {
     if (!file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const src = typeof reader.result === 'string' ? reader.result : ''
-      if (!src) return
+    const stored = await storeImageAsset(file)
 
-      if (replaceId) {
-        patchElement(replaceId, { src } as Partial<CertificateImageElement>)
-        return
-      }
-
-      const id = `image-${Date.now()}`
-      const element: CertificateImageElement = {
-        id,
-        name: file.name.replace(/\.[^.]+$/, '') || 'Uploaded image',
-        type: 'image',
-        src,
-        x: Math.round(template.width * 0.4),
-        y: Math.round(template.height * 0.34),
-        width: Math.round(template.width * 0.2),
-        height: Math.round(template.height * 0.2),
-        objectFit: 'contain',
-        opacity: 1,
-      }
-      onChange({ ...template, elements: [...template.elements, element] })
-      setSelectedElementId(id)
+    if (replaceId) {
+      patchElement(replaceId, { src: stored.src, assetId: stored.assetId } as Partial<CertificateImageElement>)
+      return
     }
-    reader.readAsDataURL(file)
+
+    const id = `image-${Date.now()}`
+    const element: CertificateImageElement = {
+      id,
+      name: file.name.replace(/\.[^.]+$/, '') || 'Uploaded image',
+      type: 'image',
+      src: stored.src,
+      assetId: stored.assetId,
+      x: Math.round(template.width * 0.4),
+      y: Math.round(template.height * 0.34),
+      width: Math.round(template.width * 0.2),
+      height: Math.round(template.height * 0.2),
+      objectFit: 'contain',
+      opacity: 1,
+    }
+    onChange({ ...template, elements: [...template.elements, element] })
+    setSelectedElementId(id)
   }
 
   const addLine = () => {
@@ -191,7 +188,7 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
         <button className="tool-button" type="button" onClick={addShape}><span className="tool-icon">□</span><strong>Shape</strong></button>
         <button className="tool-button" type="button" onClick={addLine}><span className="tool-icon">—</span><strong>Line</strong></button>
         <button className="tool-button" type="button" onClick={() => imageInputRef.current?.click()}><span className="tool-icon">▧</span><strong>Image</strong></button>
-        <input ref={imageInputRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { const file = event.target.files?.[0]; if (file) addImageFromFile(file); event.currentTarget.value = '' }} />
+        <input ref={imageInputRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addImageFromFile(file); event.currentTarget.value = '' }} />
       </aside>
 
       <div className="canvas-workspace">
@@ -324,7 +321,7 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
                 <div className="property-section-heading"><span>Image</span><small>Replace or fit this asset</small></div>
                 <div className="image-property-preview"><img src={selectedElement.src} alt={selectedElement.name} /></div>
                 <button className="replace-image-button" type="button" onClick={() => replaceImageInputRef.current?.click()}>Replace image</button>
-                <input ref={replaceImageInputRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { const file = event.target.files?.[0]; if (file) addImageFromFile(file, selectedElement.id); event.currentTarget.value = '' }} />
+                <input ref={replaceImageInputRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addImageFromFile(file, selectedElement.id); event.currentTarget.value = '' }} />
                 <div className="property-grid two">
                   <label>Fit<select value={selectedElement.objectFit} onChange={(event) => patchElement(selectedElement.id, { objectFit: event.target.value as CertificateImageElement['objectFit'] } as Partial<CertificateImageElement>)}><option value="contain">Contain</option><option value="cover">Cover</option><option value="fill">Stretch</option></select></label>
                   <label>Corner radius<input type="number" min="0" value={selectedElement.borderRadius ?? 0} onChange={(event) => patchElement(selectedElement.id, { borderRadius: numericValue(event.target.value) } as Partial<CertificateImageElement>)} /></label>

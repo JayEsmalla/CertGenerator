@@ -78,6 +78,7 @@ export type CertificateLineElement = CertificateElementBase & {
 export type CertificateImageElement = CertificateElementBase & {
   type: 'image'
   src?: string
+  assetId?: string
   objectFit: 'contain' | 'cover' | 'fill'
   borderRadius?: number
   slotKey?: string
