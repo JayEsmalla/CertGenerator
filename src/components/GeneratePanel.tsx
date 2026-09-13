@@ -111,7 +111,7 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
 
             <button className="export-option" type="button" disabled={Boolean(activeExport)} onClick={() => void runExport('combined')}>
               <span className="export-option-icon">▤</span>
-              <span><strong>Combined PDF</strong><small>One multi-page PDF containing every enabled recipient.</small></span>
+              <span><strong>Combined PDF</strong><small>One multi-page PDF containing every enabled recipient.</small><em className="export-badge">Recommended</em></span>
               <span>→</span>
             </button>
 
