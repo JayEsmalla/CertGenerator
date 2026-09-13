@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import CertificatePreview from './CertificatePreview'
 import { importRecipientFile } from '../services/importRecipients'
+import { analyzeRecipientIntegrity } from '../services/recipientValidation'
 import { getMergeFieldLabel, getTemplateMergeFields } from '../utils/mergeFields'
 import type { CertificateTemplate } from '../types/certificate'
 import type { RecipientDataset, RecipientRow } from '../types/recipients'
@@ -26,7 +27,8 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
   const enabledRows = useMemo(() => dataset.rows.filter((row) => row.enabled), [dataset.rows])
   const previewRow = enabledRows[Math.min(previewIndex, Math.max(enabledRows.length - 1, 0))]
   const requiredFields = useMemo(() => getTemplateMergeFields(template), [template])
-  const missingFields = requiredFields.filter((field) => !dataset.fields.includes(field) && !template.defaults?.[field])
+  const integrity = useMemo(() => analyzeRecipientIntegrity(template, dataset), [dataset, template])
+  const missingFields = integrity.missingDatasetFields
 
   const handleFile = async (file?: File) => {
     if (!file) return
@@ -126,7 +128,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
           {dataset.warnings?.map((warning) => <div className="import-warning" key={warning}>{warning}</div>)}
 
           {missingFields.length > 0 && (
-            <div className="field-status warning">
+            <div className="field-status warning" role="alert">
               <strong>Template fields still need data</strong>
               <div>{missingFields.map((field) => <span key={field}>{getMergeFieldLabel(field)}</span>)}</div>
               <p>Rename imported column headers below to match these fields, or replace the merge field with fixed text in the Editor.</p>
@@ -135,6 +137,12 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
 
           {dataset.rows.length ? (
             <>
+              {(integrity.invalidCount > 0 || integrity.duplicateGroupCount > 0) && (
+                <div className={`integrity-summary ${integrity.invalidCount ? 'blocking' : ''}`}>
+                  {integrity.invalidCount > 0 && <strong>{integrity.invalidCount} enabled recipient{integrity.invalidCount === 1 ? '' : 's'} need required data before generation.</strong>}
+                  {integrity.duplicateGroupCount > 0 && <span>{integrity.duplicateGroupCount} possible duplicate-name group{integrity.duplicateGroupCount === 1 ? '' : 's'} detected. Duplicates are warnings only.</span>}
+                </div>
+              )}
               <div className="review-toolbar">
                 <div><strong>Review rows</strong><span>Rename column headers to map fields.</span></div>
                 <button type="button" onClick={addRow}>+ Add row</button>
@@ -162,9 +170,12 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
                   </thead>
                   <tbody>
                     {dataset.rows.map((row) => (
-                      <tr key={row.id} className={row.enabled ? '' : 'disabled-row'}>
+                      <tr key={row.id} className={`${row.enabled ? '' : 'disabled-row'} ${integrity.invalidRowIds.has(row.id) ? 'invalid-row' : ''} ${integrity.duplicateRowIds.has(row.id) ? 'duplicate-row' : ''}`.trim()}>
                         <td className="include-column"><input type="checkbox" checked={row.enabled} onChange={(event) => toggleRow(row.id, event.target.checked)} aria-label={`Use row ${row.id}`} /></td>
-                        {dataset.fields.map((field) => <td key={field}><input value={row.values[field] ?? ''} onChange={(event) => updateRow(row.id, field, event.target.value)} /></td>)}
+                        {dataset.fields.map((field) => {
+                          const missingRequired = row.enabled && integrity.requiredFields.includes(field) && !row.values[field]?.trim()
+                          return <td key={field} className={missingRequired ? 'missing-required-cell' : ''}><input aria-invalid={missingRequired || undefined} value={row.values[field] ?? ''} onChange={(event) => updateRow(row.id, field, event.target.value)} /></td>
+                        })}
                         <td className="row-action-column"><button type="button" onClick={() => removeRow(row.id)} aria-label="Remove recipient">×</button></td>
                       </tr>
                     ))}
@@ -191,7 +202,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
               {dataset.fields.map((field) => <div key={field}><span>{getMergeFieldLabel(field)}</span><strong>{previewRow.values[field] || '—'}</strong></div>)}
             </div>
           )}
-          <button className="primary-action recipient-continue" type="button" disabled={!enabledRows.length} onClick={onContinue}>Continue to Generate <span>→</span></button>
+          <button className="primary-action recipient-continue" type="button" disabled={!integrity.canGenerate} title={!integrity.canGenerate && enabledRows.length ? 'Resolve required recipient data before generating.' : undefined} onClick={onContinue}>Continue to Generate <span>→</span></button>
         </aside>
       </div>
     </section>

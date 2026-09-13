@@ -6,6 +6,7 @@ import {
   exportSinglePdf,
   type ExportTarget,
 } from '../services/exportCertificates'
+import { analyzeRecipientIntegrity } from '../services/recipientValidation'
 import type { CertificateTemplate } from '../types/certificate'
 import type { RecipientDataset } from '../types/recipients'
 
@@ -25,6 +26,7 @@ type ProgressState = {
 
 export default function GeneratePanel({ template, dataset, onBack }: GeneratePanelProps) {
   const enabledRows = useMemo(() => dataset.rows.filter((row) => row.enabled), [dataset.rows])
+  const integrity = useMemo(() => analyzeRecipientIntegrity(template, dataset), [dataset, template])
   const [selectedId, setSelectedId] = useState(enabledRows[0]?.id ?? '')
   const [activeExport, setActiveExport] = useState<ExportMode>(null)
   const [progress, setProgress] = useState<ProgressState>({ completed: 0, total: 0, label: '' })
@@ -83,10 +85,10 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
         <div className="recipient-summary"><strong>{enabledRows.length}</strong><span>certificates ready</span></div>
       </div>
 
-      {!enabledRows.length ? (
+      {!integrity.canGenerate ? (
         <div className="generate-empty">
-          <strong>No enabled recipients.</strong>
-          <p>Return to the Recipients step and enable at least one row before generating files.</p>
+          <strong>{!enabledRows.length ? 'No enabled recipients.' : 'Recipient data needs attention.'}</strong>
+          <p>{!enabledRows.length ? 'Return to the Recipients step and enable at least one row before generating files.' : `${integrity.invalidCount} enabled recipient${integrity.invalidCount === 1 ? '' : 's'} still have missing required certificate data. Resolve them before exporting.`}</p>
           <button type="button" onClick={onBack}>← Back to Recipients</button>
         </div>
       ) : (
@@ -141,7 +143,7 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
         </div>
       )}
 
-      <div className="export-render-host" aria-hidden="true">
+      {integrity.canGenerate && <div className="export-render-host" aria-hidden="true">
         {enabledRows.map((row) => (
           <div
             key={row.id}
@@ -155,7 +157,7 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
             <CertificatePreview template={template} data={row.values} />
           </div>
         ))}
-      </div>
+      </div>}
     </section>
   )
 }
