@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import CertificatePreview from './CertificatePreview'
 import { importRecipientFile } from '../services/importRecipients'
-import { getTemplateMergeFields } from '../utils/mergeFields'
+import { getMergeFieldLabel, getTemplateMergeFields } from '../utils/mergeFields'
 import type { CertificateTemplate } from '../types/certificate'
 import type { RecipientDataset, RecipientRow } from '../types/recipients'
 
@@ -128,7 +128,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
           {missingFields.length > 0 && (
             <div className="field-status warning">
               <strong>Template fields still need data</strong>
-              <div>{missingFields.map((field) => <span key={field}>{`{{${field}}}`}</span>)}</div>
+              <div>{missingFields.map((field) => <span key={field}>{getMergeFieldLabel(field)}</span>)}</div>
               <p>Rename imported column headers below to match these fields, or replace the merge field with fixed text in the Editor.</p>
             </div>
           )}
@@ -188,7 +188,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
           <CertificatePreview template={template} data={previewRow?.values} className="recipient-certificate-preview" />
           {previewRow && (
             <div className="preview-record">
-              {dataset.fields.map((field) => <div key={field}><span>{field}</span><strong>{previewRow.values[field] || '—'}</strong></div>)}
+              {dataset.fields.map((field) => <div key={field}><span>{getMergeFieldLabel(field)}</span><strong>{previewRow.values[field] || '—'}</strong></div>)}
             </div>
           )}
           <button className="primary-action recipient-continue" type="button" disabled={!enabledRows.length} onClick={onContinue}>Continue to Generate <span>→</span></button>

@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { CertificateElement, CertificateTemplate } from '../types/certificate'
 import type { RecipientValues } from '../types/recipients'
-import { resolveMergeFields } from '../utils/mergeFields'
+import { splitMergeText } from '../utils/mergeFields'
 
 type ElementPatch = Partial<Pick<CertificateElement, 'x' | 'y' | 'width' | 'height'>>
 
@@ -182,7 +182,13 @@ export default function CertificatePreview({
                   textTransform: element.uppercase ? 'uppercase' : undefined,
                 }}
               >
-                {resolveMergeFields(element.text, data)}
+                <span className="text-content">
+                  {splitMergeText(element.text, data).map((part, index) => (
+                    part.type === 'field' && !part.resolved
+                      ? <span className="merge-placeholder" key={`${part.field}-${index}`}>{part.value}</span>
+                      : <span key={`${part.type}-${index}`}>{part.value}</span>
+                  ))}
+                </span>
               </div>
             )}
 

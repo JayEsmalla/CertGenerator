@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import CertificatePreview from './CertificatePreview'
+import { fromEditorMergeText, getMergeFieldEditorToken, getMergeFieldLabel, toEditorMergeText } from '../utils/mergeFields'
 import type {
   CertificateElement,
   CertificateImageElement,
@@ -184,29 +185,35 @@ export default function CertificateEditor({ template, onChange }: CertificateEdi
   return (
     <section className="editor-shell" aria-label="Certificate editor workspace">
       <aside className="tool-rail">
-        <button className="tool-button" type="button" onClick={addText}><span>+T</span>Text</button>
-        <button className="tool-button" type="button" onClick={addShape}><span>◇</span>Shape</button>
-        <button className="tool-button" type="button" onClick={addLine}><span>━</span>Line</button>
-        <button className="tool-button" type="button" onClick={() => imageInputRef.current?.click()}><span>▧</span>Image</button>
+        <div className="tool-rail-heading">Add</div>
+        <button className="tool-button" type="button" onClick={addText}><span className="tool-icon">T</span><strong>Text</strong></button>
+        <button className="tool-button" type="button" onClick={addShape}><span className="tool-icon">□</span><strong>Shape</strong></button>
+        <button className="tool-button" type="button" onClick={addLine}><span className="tool-icon">—</span><strong>Line</strong></button>
+        <button className="tool-button" type="button" onClick={() => imageInputRef.current?.click()}><span className="tool-icon">▧</span><strong>Image</strong></button>
         <input ref={imageInputRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { const file = event.target.files?.[0]; if (file) addImageFromFile(file); event.currentTarget.value = '' }} />
       </aside>
 
       <div className="canvas-workspace">
         <div className="canvas-toolbar">
-          <div>
+          <div className="canvas-title-block">
+            <span className="workspace-kicker">Certificate editor</span>
             <strong>{template.name}</strong>
-            <span>{selectedElement ? `Selected: ${selectedElement.name}` : 'Click an element to edit it'}</span>
+            {selectedElement && <span className="selection-summary">Editing · {selectedElement.name}</span>}
           </div>
           <div className="toolbar-actions editor-toolbar-actions">
-            <button type="button" onClick={() => moveLayer('down')} disabled={!selectedElement} title="Send backward">↓</button>
-            <button type="button" onClick={() => moveLayer('up')} disabled={!selectedElement} title="Bring forward">↑</button>
-            <button type="button" onClick={duplicateSelected} disabled={!selectedElement} title="Duplicate">⧉</button>
-            <button type="button" onClick={deleteSelected} disabled={!selectedElement || selectedElement.locked} title="Delete">×</button>
-            <span>Drag to move · corner to resize</span>
+            <div className="toolbar-group" aria-label="Layer controls">
+              <button type="button" onClick={() => moveLayer('down')} disabled={!selectedElement} title="Send backward" aria-label="Send backward">↓</button>
+              <button type="button" onClick={() => moveLayer('up')} disabled={!selectedElement} title="Bring forward" aria-label="Bring forward">↑</button>
+            </div>
+            <div className="toolbar-group" aria-label="Element controls">
+              <button type="button" onClick={duplicateSelected} disabled={!selectedElement} title="Duplicate" aria-label="Duplicate selected element">⧉</button>
+              <button className="danger-tool" type="button" onClick={deleteSelected} disabled={!selectedElement || selectedElement.locked} title="Delete" aria-label="Delete selected element">×</button>
+            </div>
           </div>
         </div>
 
         <div className="canvas-stage">
+          <div className="canvas-hint"><span>✦</span>{selectedElement ? 'Drag to reposition · use the corner handle to resize' : 'Select any text, shape, line, or image to customize it'}</div>
           <CertificatePreview
             template={template}
             className="editor-certificate"
@@ -220,8 +227,8 @@ export default function CertificateEditor({ template, onChange }: CertificateEdi
 
       <aside className="properties-panel editor-properties-panel">
         <div className="panel-heading">
-          <span>{selectedElement ? selectedElement.name : 'Document'}</span>
-          <small>{selectedElement ? `${selectedElement.type} element` : `${template.category} template`}</small>
+          <div className="panel-heading-icon">{selectedElement?.type === 'text' ? 'T' : selectedElement?.type === 'image' ? '▧' : selectedElement?.type === 'shape' ? '□' : selectedElement?.type === 'line' ? '—' : '✦'}</div>
+          <div><span>{selectedElement ? selectedElement.name : 'Design settings'}</span><small>{selectedElement ? `${selectedElement.type} element` : `${template.category} certificate`}</small></div>
         </div>
 
         {!selectedElement ? (
@@ -246,20 +253,24 @@ export default function CertificateEditor({ template, onChange }: CertificateEdi
           </div>
         ) : (
           <div className="property-form">
+            <div className="property-section-heading"><span>Layer</span><small>Organize this element</small></div>
             <label>
-              Element name
+              Layer name
               <input value={selectedElement.name} onChange={(event) => patchElement(selectedElement.id, { name: event.target.value })} />
             </label>
 
             {selectedElement.type === 'text' && (
               <>
+                <div className="property-section-heading"><span>Content</span><small>Use @ fields for personalized data</small></div>
                 <label>
-                  Text
-                  <textarea rows={5} value={selectedElement.text} onChange={(event) => patchElement(selectedElement.id, { text: event.target.value } as Partial<CertificateTextElement>)} />
+                  Text content
+                  <textarea rows={5} value={toEditorMergeText(selectedElement.text)} onChange={(event) => patchElement(selectedElement.id, { text: fromEditorMergeText(event.target.value) } as Partial<CertificateTextElement>)} />
                 </label>
-                <div className="merge-field-row" aria-label="Insert merge field">
-                  {mergeFields.map((field) => <button key={field} type="button" onClick={() => insertMergeField(field)}>{`{{${field}}}`}</button>)}
+                <div className="merge-field-helper"><strong>Insert personalized data</strong><span>These values are replaced for each recipient.</span></div>
+                <div className="merge-field-row" aria-label="Insert personalized data">
+                  {mergeFields.map((field) => <button key={field} type="button" onClick={() => insertMergeField(field)}><span>+</span>{getMergeFieldLabel(field)}<small>@{getMergeFieldEditorToken(field)}</small></button>)}
                 </div>
+                <div className="property-section-heading"><span>Typography</span><small>Style the selected text</small></div>
                 <label>
                   Font
                   <select value={selectedElement.fontFamily} onChange={(event) => patchElement(selectedElement.id, { fontFamily: event.target.value } as Partial<CertificateTextElement>)}>
@@ -312,7 +323,7 @@ export default function CertificateEditor({ template, onChange }: CertificateEdi
               </>
             )}
 
-            <div className="property-section-title">Layout</div>
+            <div className="property-section-heading layout-heading"><span>Position & size</span><small>Fine-tune placement on the certificate</small></div>
             <div className="property-grid two">
               <label>X<input type="number" value={selectedElement.x} onChange={(event) => patchElement(selectedElement.id, { x: numericValue(event.target.value) })} /></label>
               <label>Y<input type="number" value={selectedElement.y} onChange={(event) => patchElement(selectedElement.id, { y: numericValue(event.target.value) })} /></label>
