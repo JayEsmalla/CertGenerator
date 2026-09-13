@@ -209,6 +209,7 @@ export default function App() {
   }
 
   const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Storage issue' : 'Saved locally'
+  const activeStepIndex = Math.max(0, steps.findIndex((step) => step.id === activeStep))
 
   return (
     <div className="app-shell">
@@ -219,18 +220,29 @@ export default function App() {
         </div>
         <div className="header-actions">
           {templateNotice && <span className="template-notice">{templateNotice}</span>}
-          <span className={`local-badge ${saveState}`}>{saveLabel}</span>
-          {activeStep === 'editor' && <button className="ghost-action" type="button" onClick={() => void saveDesignToLibrary()}>Save template</button>}
-          <button className="ghost-action" type="button" onClick={startNewProject}>New project</button>
+          <span className={`local-badge ${saveState}`}><span className="save-status-dot" aria-hidden="true" />{saveLabel}</span>
+          {activeStep === 'editor' && <button className="app-action secondary" type="button" onClick={() => void saveDesignToLibrary()}>Save template</button>}
+          <button className="app-action tertiary" type="button" onClick={startNewProject}>New project</button>
         </div>
       </header>
 
       <nav className="workflow-nav" aria-label="Certificate workflow">
-        {steps.map((step, index) => (
-          <button type="button" key={step.id} className={activeStep === step.id ? 'workflow-step active' : 'workflow-step'} onClick={() => setActiveStep(step.id)}>
-            <span className="step-index">{index + 1}</span><span><strong>{step.label}</strong><small>{step.description}</small></span>
-          </button>
-        ))}
+        {steps.map((step, index) => {
+          const isActive = activeStep === step.id
+          const isComplete = index < activeStepIndex
+          return (
+            <button
+              type="button"
+              key={step.id}
+              className={`workflow-step ${isActive ? 'active' : ''} ${isComplete ? 'complete' : ''}`.trim()}
+              onClick={() => setActiveStep(step.id)}
+              aria-current={isActive ? 'step' : undefined}
+            >
+              <span className="step-index">{isComplete ? '✓' : index + 1}</span>
+              <span className="step-copy"><strong>{step.label}</strong><small>{step.description}</small></span>
+            </button>
+          )
+        })}
       </nav>
 
       <main className="app-main">
