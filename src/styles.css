@@ -314,5 +314,196 @@ button:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 
   .template-stage-header { align-items: flex-start; flex-direction: column; }
   .template-count { text-align: left; }
   .template-gallery { grid-template-columns: 1fr; }
-  .template-canvas.compact > [data-element-id] { font-size: 2vw !important; }
+}
+
+/* Interactive design editor */
+.template-canvas.interactive {
+  touch-action: none;
+  user-select: none;
+}
+
+.canvas-element {
+  z-index: 1;
+}
+
+.canvas-element > .shape-render,
+.canvas-element > .line-render,
+.canvas-element > .text-render {
+  width: 100%;
+  height: 100%;
+}
+
+.text-render {
+  display: flex;
+  align-items: center;
+  white-space: pre-wrap;
+  overflow: hidden;
+  padding: 0 .25cqw;
+}
+
+.shape-render { box-sizing: border-box; }
+.line-render { position: absolute; top: 50%; transform: translateY(-50%); }
+
+.template-canvas.interactive .canvas-element {
+  cursor: move;
+}
+
+.template-canvas.interactive .canvas-element.locked {
+  cursor: default;
+}
+
+.canvas-element.selected::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 1.5px solid #6d5dfc;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.9);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid white;
+  border-radius: 3px;
+  background: #6d5dfc;
+  cursor: nwse-resize;
+  z-index: 30;
+}
+
+.locked-chip {
+  position: absolute;
+  top: -24px;
+  right: 0;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #111827;
+  color: white;
+  font-size: 9px;
+  z-index: 30;
+}
+
+.tool-disabled { opacity: .35; cursor: not-allowed; }
+.editor-toolbar-actions button:disabled { opacity: .35; cursor: not-allowed; }
+.editor-toolbar-actions > span { max-width: 170px; text-align: right; }
+
+.editor-properties-panel {
+  overflow-y: auto;
+  max-height: calc(100vh - 180px);
+}
+
+.property-form {
+  padding: 14px 16px 24px;
+}
+
+.property-form label {
+  display: block;
+  margin-bottom: 12px;
+  color: #aab4c3;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.property-form input,
+.property-form select,
+.property-form textarea {
+  width: 100%;
+  margin-top: 5px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: none;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 10px;
+}
+
+.property-form textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.property-form input:focus,
+.property-form select:focus,
+.property-form textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(124,108,255,.12);
+}
+
+.property-grid {
+  display: grid;
+  gap: 9px;
+}
+.property-grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }
+
+.color-control {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 7px;
+  margin-top: 5px;
+}
+.color-control input { margin-top: 0; }
+.color-control input[type='color'] { height: 34px; padding: 3px; }
+
+.property-section-title {
+  margin: 18px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: #d8deea;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.merge-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: -3px 0 13px;
+}
+.merge-field-row button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: rgba(124,108,255,.08);
+  color: #b9b0ff;
+  cursor: pointer;
+  font-size: 8px;
+}
+.merge-field-row button:hover { border-color: rgba(124,108,255,.55); }
+
+.toggle-row {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+}
+.toggle-row input { width: auto; margin: 0; }
+
+.element-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.element-actions button {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px;
+  background: var(--surface-2);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+}
+.element-actions button:last-child { color: #fca5a5; }
+.element-actions button:disabled { opacity: .35; cursor: not-allowed; }
+
+@media (max-width: 960px) {
+  .editor-properties-panel { display: none; }
 }

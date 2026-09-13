@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import CertificatePreview from './components/CertificatePreview'
+import CertificateEditor from './components/CertificateEditor'
 import TemplateGallery from './components/TemplateGallery'
 import { defaultTemplate, starterTemplates } from './data/templates'
 import type { CertificateTemplate } from './types/certificate'
@@ -20,6 +20,8 @@ const steps: StepDefinition[] = [
   { id: 'generate', label: 'Generate', description: 'Export personalized files', icon: '↓' },
 ]
 
+const cloneTemplate = (template: CertificateTemplate): CertificateTemplate => JSON.parse(JSON.stringify(template)) as CertificateTemplate
+
 function TemplatesPanel({
   selectedTemplate,
   onSelect,
@@ -36,7 +38,7 @@ function TemplatesPanel({
           <div className="eyebrow">Starter library</div>
           <h2>Choose a design to make your own.</h2>
           <p>
-            Every design is now a reusable certificate document. Content, colors, positions, and merge fields
+            Every design is a reusable certificate document. Content, colors, positions, and merge fields
             are stored as template data rather than fixed page markup.
           </p>
         </div>
@@ -55,56 +57,6 @@ function TemplatesPanel({
   )
 }
 
-function EditorFoundation({ template }: { template: CertificateTemplate }) {
-  return (
-    <section className="editor-shell" aria-label="Certificate editor workspace">
-      <aside className="tool-rail">
-        <button className="tool-button active" type="button"><span>+T</span>Text</button>
-        <button className="tool-button" type="button"><span>▧</span>Image</button>
-        <button className="tool-button" type="button"><span>◇</span>Shape</button>
-        <button className="tool-button" type="button"><span>⌁</span>Uploads</button>
-      </aside>
-
-      <div className="canvas-workspace">
-        <div className="canvas-toolbar">
-          <div>
-            <strong>{template.name}</strong>
-            <span>A4 · {template.orientation === 'landscape' ? 'Landscape' : 'Portrait'} · {template.elements.length} elements</span>
-          </div>
-          <div className="toolbar-actions">
-            <button type="button" disabled aria-label="Undo">↶</button>
-            <button type="button" disabled aria-label="Redo">↷</button>
-            <span>Fit</span>
-          </div>
-        </div>
-
-        <div className="canvas-stage">
-          <CertificatePreview template={template} className="editor-certificate" />
-        </div>
-      </div>
-
-      <aside className="properties-panel">
-        <div className="panel-heading">
-          <span>Document</span>
-          <small>{template.category} template</small>
-        </div>
-        <div className="document-properties">
-          <div><span>Canvas</span><strong>{template.width} × {template.height}</strong></div>
-          <div><span>Orientation</span><strong>{template.orientation}</strong></div>
-          <div><span>Elements</span><strong>{template.elements.length}</strong></div>
-          <div><span>Background</span><strong className="color-property"><i style={{ background: template.background }} />{template.background}</strong></div>
-          <div><span>Accent</span><strong className="color-property"><i style={{ background: template.accent }} />{template.accent}</strong></div>
-        </div>
-        <div className="empty-properties compact-empty">
-          <div>◇</div>
-          <strong>Element editing comes next</strong>
-          <p>The template engine is active. The next stage will make individual elements selectable and editable.</p>
-        </div>
-      </aside>
-    </section>
-  )
-}
-
 function PlaceholderPanel({ step }: { step: StepDefinition }) {
   return (
     <section className="stage-card placeholder-stage">
@@ -118,12 +70,17 @@ function PlaceholderPanel({ step }: { step: StepDefinition }) {
 
 export default function App() {
   const [activeStep, setActiveStep] = useState<WorkflowStep>('templates')
-  const [selectedTemplate, setSelectedTemplate] = useState<CertificateTemplate>(defaultTemplate)
+  const [selectedTemplate, setSelectedTemplate] = useState<CertificateTemplate>(() => cloneTemplate(defaultTemplate))
   const selectedStep = steps.find((step) => step.id === activeStep) ?? steps[0]
 
   const useTemplate = (template: CertificateTemplate) => {
-    setSelectedTemplate(template)
+    setSelectedTemplate(cloneTemplate(template))
     setActiveStep('editor')
+  }
+
+  const startNewProject = () => {
+    setSelectedTemplate(cloneTemplate(defaultTemplate))
+    setActiveStep('templates')
   }
 
   return (
@@ -138,7 +95,7 @@ export default function App() {
         </div>
         <div className="header-actions">
           <span className="local-badge">Local workspace</span>
-          <button className="ghost-action" type="button" onClick={() => setActiveStep('templates')}>New project</button>
+          <button className="ghost-action" type="button" onClick={startNewProject}>New project</button>
         </div>
       </header>
 
@@ -163,11 +120,11 @@ export default function App() {
         {activeStep === 'templates' && (
           <TemplatesPanel
             selectedTemplate={selectedTemplate}
-            onSelect={setSelectedTemplate}
+            onSelect={(template) => setSelectedTemplate(cloneTemplate(template))}
             onUseTemplate={useTemplate}
           />
         )}
-        {activeStep === 'editor' && <EditorFoundation template={selectedTemplate} />}
+        {activeStep === 'editor' && <CertificateEditor template={selectedTemplate} onChange={setSelectedTemplate} />}
         {(activeStep === 'recipients' || activeStep === 'generate') && <PlaceholderPanel step={selectedStep} />}
       </main>
     </div>
