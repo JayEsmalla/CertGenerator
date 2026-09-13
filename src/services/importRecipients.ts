@@ -1,4 +1,5 @@
 import * as mammoth from 'mammoth'
+import { IMPORT_LIMITS } from '../config/limits'
 import type { RecipientDataset, RecipientRow } from '../types/recipients'
 
 const aliases: Record<string, string> = {
@@ -31,8 +32,16 @@ const aliases: Record<string, string> = {
   'signer': 'signatory',
 }
 
+function limitError(message: string) {
+  return new Error(`${message} Import a smaller, cleaner recipient file and try again.`)
+}
+
 function cleanCell(value: string) {
-  return value.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim()
+  const cleaned = value.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim()
+  if (cleaned.length > IMPORT_LIMITS.maxCellChars) {
+    throw limitError(`A cell exceeds the ${IMPORT_LIMITS.maxCellChars.toLocaleString()} character limit.`)
+  }
+  return cleaned
 }
 
 function normalizeField(value: string, index: number) {
@@ -54,17 +63,31 @@ function makeUniqueFields(fields: string[]) {
 }
 
 function rowId(index: number) {
-  return `recipient-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`
+  return typeof crypto?.randomUUID === 'function'
+    ? `recipient-${crypto.randomUUID()}`
+    : `recipient-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+function assertTableLimits(rows: string[][]) {
+  if (rows.length > IMPORT_LIMITS.maxRows + 1) {
+    throw limitError(`The file contains more than ${IMPORT_LIMITS.maxRows.toLocaleString()} recipient rows.`)
+  }
+  const maxColumns = rows.reduce((max, row) => Math.max(max, row.length), 0)
+  if (maxColumns > IMPORT_LIMITS.maxColumns) {
+    throw limitError(`The file contains more than ${IMPORT_LIMITS.maxColumns} columns.`)
+  }
 }
 
 function makeRows(fields: string[], sourceRows: string[][]): RecipientRow[] {
-  return sourceRows
-    .filter((row) => row.some((value) => cleanCell(value)))
-    .map((row, index) => ({
-      id: rowId(index),
-      enabled: true,
-      values: Object.fromEntries(fields.map((field, fieldIndex) => [field, cleanCell(row[fieldIndex] ?? '')])),
-    }))
+  if (fields.length > IMPORT_LIMITS.maxColumns) throw limitError(`The file contains more than ${IMPORT_LIMITS.maxColumns} columns.`)
+  const filtered = sourceRows.filter((row) => row.some((value) => cleanCell(value)))
+  if (filtered.length > IMPORT_LIMITS.maxRows) throw limitError(`The file contains more than ${IMPORT_LIMITS.maxRows.toLocaleString()} recipients.`)
+
+  return filtered.map((row, index) => ({
+    id: rowId(index),
+    enabled: true,
+    values: Object.fromEntries(fields.map((field, fieldIndex) => [field, cleanCell(row[fieldIndex] ?? '')])),
+  }))
 }
 
 function hasRecognizableHeader(row: string[]) {
@@ -72,6 +95,7 @@ function hasRecognizableHeader(row: string[]) {
 }
 
 function datasetFromTable(rows: string[][], sourceName: string): RecipientDataset {
+  assertTableLimits(rows)
   const maxColumns = Math.max(...rows.map((row) => row.length), 1)
   const firstRow = rows[0] ?? []
   const firstRowIsHeader = hasRecognizableHeader(firstRow)
@@ -95,12 +119,22 @@ function datasetFromTable(rows: string[][], sourceName: string): RecipientDatase
     rows: makeRows(fields, dataRows),
     sourceName,
     warnings: firstRowIsHeader
-      ? ['A Word table header was detected. Review the mapped field names before generating.']
+      ? ['A table header was detected. Review the mapped field names before generating.']
       : ['No clear table header was detected. Review and rename the imported columns before generating.'],
   }
 }
 
+function pushDelimitedRow(rows: string[][], currentRow: string[], current: string) {
+  currentRow.push(current)
+  if (currentRow.length > IMPORT_LIMITS.maxColumns) throw limitError(`The file contains more than ${IMPORT_LIMITS.maxColumns} columns.`)
+  rows.push(currentRow)
+  if (rows.length > IMPORT_LIMITS.maxRows + 1) throw limitError(`The file contains more than ${IMPORT_LIMITS.maxRows.toLocaleString()} recipient rows.`)
+}
+
 function parseDelimited(text: string, delimiter: string) {
+  if (text.includes('\0')) throw new Error('This file appears to be binary rather than CSV/text data.')
+  if (text.length > IMPORT_LIMITS.maxExtractedChars) throw limitError('The extracted text is too large.')
+
   const rows: string[][] = []
   let currentRow: string[] = []
   let current = ''
@@ -121,30 +155,45 @@ function parseDelimited(text: string, delimiter: string) {
     }
     if (char === delimiter && !quoted) {
       currentRow.push(current)
+      if (currentRow.length > IMPORT_LIMITS.maxColumns) throw limitError(`The file contains more than ${IMPORT_LIMITS.maxColumns} columns.`)
       current = ''
       continue
     }
     if ((char === '\n' || char === '\r') && !quoted) {
       if (char === '\r' && next === '\n') index += 1
-      currentRow.push(current)
-      rows.push(currentRow)
+      pushDelimitedRow(rows, currentRow, current)
       currentRow = []
       current = ''
       continue
     }
     current += char
+    if (current.length > IMPORT_LIMITS.maxCellChars) throw limitError(`A cell exceeds the ${IMPORT_LIMITS.maxCellChars.toLocaleString()} character limit.`)
   }
 
-  if (current || currentRow.length) {
-    currentRow.push(current)
-    rows.push(currentRow)
-  }
+  if (quoted) throw new Error('The CSV contains an unterminated quoted field.')
+  if (current || currentRow.length) pushDelimitedRow(rows, currentRow, current)
   return rows
 }
 
+async function assertDocxHeader(file: File) {
+  const bytes = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+  if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+    throw new Error('The selected DOCX is not a valid Word/ZIP document.')
+  }
+}
+
+function assertFileSize(file: File) {
+  if (!file.size) throw new Error('The selected recipient file is empty.')
+  if (file.size > IMPORT_LIMITS.maxFileBytes) {
+    throw limitError(`Recipient files must be ${Math.round(IMPORT_LIMITS.maxFileBytes / 1024 / 1024)} MB or smaller.`)
+  }
+}
+
 async function importDocx(file: File): Promise<RecipientDataset> {
+  await assertDocxHeader(file)
   const arrayBuffer = await file.arrayBuffer()
   const result = await mammoth.convertToHtml({ arrayBuffer })
+  if (result.value.length > IMPORT_LIMITS.maxExtractedChars) throw limitError('The Word document expands to too much text.')
   const document = new DOMParser().parseFromString(result.value, 'text/html')
 
   const tables = [...document.querySelectorAll('table')]
@@ -155,6 +204,7 @@ async function importDocx(file: File): Promise<RecipientDataset> {
     .sort((a, b) => b.length - a.length)
 
   if (tables.length) {
+    assertTableLimits(tables[0])
     const dataset = datasetFromTable(tables[0], file.name)
     if (tables.length > 1) dataset.warnings?.push(`Found ${tables.length} tables; imported the table with the most rows.`)
     if (result.messages.length) dataset.warnings?.push(`${result.messages.length} document conversion note(s) were reported.`)
@@ -162,10 +212,12 @@ async function importDocx(file: File): Promise<RecipientDataset> {
   }
 
   const rawResult = await mammoth.extractRawText({ arrayBuffer })
+  if (rawResult.value.length > IMPORT_LIMITS.maxExtractedChars) throw limitError('The Word document expands to too much text.')
   const lines = rawResult.value
     .split(/\r?\n/)
     .map((line) => cleanCell(line).replace(/^([•●▪◦*-]|\d+[.)])\s*/, ''))
     .filter(Boolean)
+  if (lines.length > IMPORT_LIMITS.maxRows) throw limitError(`The document contains more than ${IMPORT_LIMITS.maxRows.toLocaleString()} candidate recipients.`)
 
   return {
     fields: ['name'],
@@ -186,7 +238,11 @@ async function importCsv(file: File): Promise<RecipientDataset> {
 }
 
 async function importTxt(file: File): Promise<RecipientDataset> {
-  const lines = (await file.text()).split(/\r?\n/).map(cleanCell).filter(Boolean)
+  const text = await file.text()
+  if (text.includes('\0')) throw new Error('This file appears to be binary rather than plain text.')
+  if (text.length > IMPORT_LIMITS.maxExtractedChars) throw limitError('The text file is too large after decoding.')
+  const lines = text.split(/\r?\n/).map(cleanCell).filter(Boolean)
+  if (lines.length > IMPORT_LIMITS.maxRows) throw limitError(`The file contains more than ${IMPORT_LIMITS.maxRows.toLocaleString()} recipients.`)
   return {
     fields: ['name'],
     rows: makeRows(['name'], lines.map((line) => [line])),
@@ -196,9 +252,12 @@ async function importTxt(file: File): Promise<RecipientDataset> {
 }
 
 export async function importRecipientFile(file: File): Promise<RecipientDataset> {
+  assertFileSize(file)
   const extension = file.name.split('.').pop()?.toLowerCase()
   if (extension === 'docx') return importDocx(file)
   if (extension === 'csv') return importCsv(file)
   if (extension === 'txt') return importTxt(file)
   throw new Error('Unsupported file type. Upload a DOCX, CSV, or TXT file.')
 }
+
+export const __importTestUtils = { cleanCell, datasetFromTable, parseDelimited, assertTableLimits }

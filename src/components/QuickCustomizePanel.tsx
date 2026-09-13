@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import CertificatePreview from './CertificatePreview'
+import { IMAGE_ACCEPT } from '../config/limits'
+import { prepareImageUpload } from '../services/imageUpload'
 import { storeImageAsset } from '../services/projectStorage'
 import type {
   CertificateImageElement,
@@ -30,6 +33,7 @@ function fieldValue(template: CertificateTemplate, field: CertificateQuickField)
 }
 
 export default function QuickCustomizePanel({ template, onChange, onAdvanced, onContinue }: QuickCustomizePanelProps) {
+  const [imageError, setImageError] = useState('')
   const quickFields = template.quickFields ?? []
   const imageSlots = template.imageSlots ?? []
   const requiredFields = quickFields.filter((field) => field.required)
@@ -64,9 +68,15 @@ export default function QuickCustomizePanel({ template, onChange, onAdvanced, on
   }
 
   const handleImage = async (elementId: string, file?: File) => {
-    if (!file || !file.type.startsWith('image/')) return
-    const stored = await storeImageAsset(file)
-    patchImageSlot(elementId, stored.src, stored.assetId)
+    if (!file) return
+    setImageError('')
+    try {
+      const prepared = await prepareImageUpload(file)
+      const stored = await storeImageAsset(prepared.blob)
+      patchImageSlot(elementId, stored.src, stored.assetId)
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : 'Could not use this image.')
+    }
   }
 
   return (
@@ -85,6 +95,7 @@ export default function QuickCustomizePanel({ template, onChange, onAdvanced, on
 
       <div className="quick-customize-layout">
         <aside className="quick-form-card">
+          {imageError && <div className="inline-upload-error" role="alert">{imageError}</div>}
           <div className="quick-progress-card">
             <div>
               <span>Template setup</span>
@@ -137,11 +148,11 @@ export default function QuickCustomizePanel({ template, onChange, onAdvanced, on
                           </div>
                           <div className="quick-image-info">
                             <strong>{slot.label}</strong>
-                            <small>{slot.helper ?? 'PNG, JPG, WebP, or SVG'}</small>
+                            <small>{slot.helper ?? 'PNG, JPEG, or WebP · up to 8 MB'}</small>
                           </div>
                           <label className="quick-upload-action">
                             {image?.src ? 'Replace' : 'Upload'}
-                            <input hidden type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => { void handleImage(slot.elementId, event.target.files?.[0]); event.currentTarget.value = '' }} />
+                            <input hidden type="file" accept={IMAGE_ACCEPT} onChange={(event) => { void handleImage(slot.elementId, event.target.files?.[0]); event.currentTarget.value = '' }} />
                           </label>
                           {image?.src && <button className="quick-remove-image" type="button" onClick={() => patchImageSlot(slot.elementId)}>Remove</button>}
                         </div>

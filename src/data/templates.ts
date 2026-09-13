@@ -177,7 +177,7 @@ export const starterTemplates: CertificateTemplate[] = [
         mergeField('signatory_title', 'Signatory title', 'signatories', 'e.g. School Director'),
       ],
       imageSlots: [
-        { key: 'logo', label: 'School seal or logo', group: 'organization', elementId: 'academic-logo', helper: 'Best with a transparent PNG or SVG.' },
+        { key: 'logo', label: 'School seal or logo', group: 'organization', elementId: 'academic-logo', helper: 'Best with a transparent PNG or WebP.' },
         { key: 'signature', label: 'Signature image', group: 'signatories', elementId: 'academic-signature', helper: 'Optional handwritten signature image.' },
       ],
     }),
@@ -349,7 +349,7 @@ export const starterTemplates: CertificateTemplate[] = [
         mergeField('signatory_title', 'Signatory title', 'signatories', 'e.g. Executive Director'),
       ],
       imageSlots: [
-        { key: 'logo', label: 'Organization logo', group: 'organization', elementId: 'community-logo', helper: 'Transparent PNG or SVG recommended.' },
+        { key: 'logo', label: 'Organization logo', group: 'organization', elementId: 'community-logo', helper: 'Transparent PNG or WebP recommended.' },
         { key: 'signature', label: 'Signature image', group: 'signatories', elementId: 'community-signature', helper: 'Optional handwritten signature.' },
       ],
     }),
