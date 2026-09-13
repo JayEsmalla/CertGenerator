@@ -295,6 +295,8 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
                   <label>Letter spacing<input type="number" step="0.5" value={selectedElement.letterSpacing ?? 0} onChange={(event) => patchElement(selectedElement.id, { letterSpacing: numericValue(event.target.value) } as Partial<CertificateTextElement>)} /></label>
                   <label>Line height<input type="number" min="0.8" max="3" step="0.05" value={selectedElement.lineHeight ?? 1.2} onChange={(event) => patchElement(selectedElement.id, { lineHeight: numericValue(event.target.value, 1.2) } as Partial<CertificateTextElement>)} /></label>
                 </div>
+                <label className="toggle-row"><input type="checkbox" checked={selectedElement.autoFit ?? false} onChange={(event) => patchElement(selectedElement.id, { autoFit: event.target.checked } as Partial<CertificateTextElement>)} /> Fit long text automatically</label>
+                {selectedElement.autoFit && <label>Minimum font size<input type="number" min="8" max={selectedElement.fontSize} value={selectedElement.minFontSize ?? Math.min(selectedElement.fontSize, Math.max(8, Math.round(selectedElement.fontSize * 0.42)))} onChange={(event) => patchElement(selectedElement.id, { minFontSize: numericValue(event.target.value, 8) } as Partial<CertificateTextElement>)} /></label>}
               </>
             )}
 

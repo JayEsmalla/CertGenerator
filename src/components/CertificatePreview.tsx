@@ -1,6 +1,6 @@
-import { useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
-import type { CertificateElement, CertificateTemplate } from '../types/certificate'
+import type { CertificateElement, CertificateTemplate, CertificateTextElement } from '../types/certificate'
 import type { RecipientValues } from '../types/recipients'
 import { getTemplateMergeValues, splitMergeText } from '../utils/mergeFields'
 
@@ -28,6 +28,103 @@ function baseStyle(element: CertificateElement, template: CertificateTemplate): 
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
+}
+
+function estimatedTextUnits(value: string) {
+  return [...value].reduce((total, character) => {
+    if (/\s/.test(character)) return total + 0.28
+    if (/[MW@#%&]/.test(character)) return total + 0.82
+    if (/[A-Z0-9]/.test(character)) return total + 0.62
+    if (/[ilI1|.,'`]/.test(character)) return total + 0.28
+    return total + 0.52
+  }, 0)
+}
+
+function fittedFontSize(element: CertificateTextElement, mergeValues?: RecipientValues) {
+  if (!element.autoFit) return element.fontSize
+
+  const renderedText = splitMergeText(element.text, mergeValues).map((part) => part.value).join('')
+  const longestLine = renderedText.split('\n').reduce((longest, line) => line.length > longest.length ? line : longest, '')
+  const estimatedWidth = estimatedTextUnits(longestLine) * element.fontSize
+  const availableWidth = element.width * 0.94
+  if (!estimatedWidth || estimatedWidth <= availableWidth) return element.fontSize
+
+  const minimum = element.minFontSize ?? Math.min(element.fontSize, Math.max(8, Math.round(element.fontSize * 0.42)))
+  return Math.max(minimum, Math.floor(element.fontSize * (availableWidth / estimatedWidth)))
+}
+
+type CertificateTextRenderProps = {
+  element: CertificateTextElement
+  template: CertificateTemplate
+  mergeValues?: RecipientValues
+}
+
+function CertificateTextRender({ element, template, mergeValues }: CertificateTextRenderProps) {
+  const parts = useMemo(() => splitMergeText(element.text, mergeValues), [element.text, mergeValues])
+  const renderedText = useMemo(() => parts.map((part) => part.value).join(''), [parts])
+  const initialFontSize = fittedFontSize(element, mergeValues)
+  const [fitScale, setFitScale] = useState(() => initialFontSize / element.fontSize)
+  const contentRef = useRef<HTMLSpanElement>(null)
+
+  useLayoutEffect(() => {
+    if (!element.autoFit) {
+      setFitScale(1)
+      return
+    }
+
+    const content = contentRef.current
+    const container = content?.parentElement
+    if (!content || !container) return
+
+    const minimumFontSize = element.minFontSize ?? Math.min(element.fontSize, Math.max(8, Math.round(element.fontSize * 0.42)))
+    const minimumScale = minimumFontSize / element.fontSize
+
+    const fit = () => {
+      const availableWidth = container.clientWidth * 0.94
+      if (!availableWidth) return
+      const currentScale = Math.max(fitScale, 0.01)
+      const range = document.createRange()
+      range.selectNodeContents(content)
+      const renderedWidth = range.getBoundingClientRect().width
+      range.detach()
+      const intrinsicWidth = renderedWidth / currentScale
+      if (!intrinsicWidth) return
+      const nextScale = clamp(availableWidth / intrinsicWidth, minimumScale, 1)
+      setFitScale((current) => Math.abs(current - nextScale) < 0.005 ? current : nextScale)
+    }
+
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [element.autoFit, element.fontSize, element.minFontSize, element.width, fitScale, renderedText])
+
+  const fontSize = `${((element.fontSize * fitScale) / template.width) * 100}cqw`
+
+  return (
+    <div
+      className="text-render"
+      style={{
+        color: element.color,
+        fontFamily: element.fontFamily,
+        fontSize,
+        fontWeight: element.fontWeight,
+        fontStyle: element.fontStyle,
+        letterSpacing: element.letterSpacing,
+        lineHeight: element.lineHeight,
+        textAlign: element.textAlign,
+        textTransform: element.uppercase ? 'uppercase' : undefined,
+      }}
+    >
+      <span ref={contentRef} className="text-content" style={{ whiteSpace: element.autoFit ? 'nowrap' : undefined }}>
+        {parts.map((part, index) => (
+          part.type === 'field' && !part.resolved
+            ? <span className="merge-placeholder" key={`${part.field}-${index}`}>{part.value}</span>
+            : <span key={`${part.type}-${index}`}>{part.value}</span>
+        ))}
+      </span>
+    </div>
+  )
 }
 
 type CertificatePreviewProps = {
@@ -130,7 +227,6 @@ export default function CertificatePreview({
       {template.elements.map((element) => {
         const selected = selectedElementId === element.id
         const elementStyle = baseStyle(element, template)
-        const fontSize = element.type === 'text' ? `${(element.fontSize / template.width) * 100}cqw` : undefined
 
         return (
           <div
@@ -174,30 +270,7 @@ export default function CertificatePreview({
               ) : null
             )}
 
-            {element.type === 'text' && (
-              <div
-                className="text-render"
-                style={{
-                  color: element.color,
-                  fontFamily: element.fontFamily,
-                  fontSize,
-                  fontWeight: element.fontWeight,
-                  fontStyle: element.fontStyle,
-                  letterSpacing: element.letterSpacing,
-                  lineHeight: element.lineHeight,
-                  textAlign: element.textAlign,
-                  textTransform: element.uppercase ? 'uppercase' : undefined,
-                }}
-              >
-                <span className="text-content">
-                  {splitMergeText(element.text, mergeValues).map((part, index) => (
-                    part.type === 'field' && !part.resolved
-                      ? <span className="merge-placeholder" key={`${part.field}-${index}`}>{part.value}</span>
-                      : <span key={`${part.type}-${index}`}>{part.value}</span>
-                  ))}
-                </span>
-              </div>
-            )}
+            {element.type === 'text' && <CertificateTextRender element={element} template={template} mergeValues={mergeValues} />}
 
             {interactive && selected && !element.locked && (
               <div

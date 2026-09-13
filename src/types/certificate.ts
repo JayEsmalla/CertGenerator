@@ -57,6 +57,8 @@ export type CertificateTextElement = CertificateElementBase & {
   letterSpacing?: number
   lineHeight?: number
   uppercase?: boolean
+  autoFit?: boolean
+  minFontSize?: number
 }
 
 export type CertificateShapeElement = CertificateElementBase & {

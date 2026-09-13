@@ -23,8 +23,9 @@ function text(
   height: number,
   fontSize: number,
   color: string,
-  options: Partial<Pick<CertificateTextElement, 'fontFamily' | 'fontWeight' | 'fontStyle' | 'textAlign' | 'letterSpacing' | 'lineHeight' | 'uppercase'>> = {},
+  options: Partial<Pick<CertificateTextElement, 'fontFamily' | 'fontWeight' | 'fontStyle' | 'textAlign' | 'letterSpacing' | 'lineHeight' | 'uppercase' | 'autoFit' | 'minFontSize'>> = {},
 ): CertificateTextElement {
+  const autoFit = options.autoFit ?? (value.includes('{{name}}') || value.includes('{{organization}}') || fontSize >= 36)
   return {
     id,
     name,
@@ -43,6 +44,8 @@ function text(
     letterSpacing: options.letterSpacing ?? 0,
     lineHeight: options.lineHeight ?? 1.25,
     uppercase: options.uppercase ?? false,
+    autoFit,
+    minFontSize: options.minFontSize ?? (autoFit ? Math.min(fontSize, Math.max(8, Math.round(fontSize * 0.42))) : undefined),
   }
 }
 
