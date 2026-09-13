@@ -106,7 +106,7 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
           <div className="generate-preview-card">
             <div className="preview-card-heading">
               <div><strong>Final preview</strong><span>{selectedRow?.values.name || 'Selected recipient'}</span></div>
-              <select value={selectedRow?.id ?? ''} onChange={(event) => setSelectedId(event.target.value)} disabled={Boolean(activeExport)}>
+              <select aria-label="Preview recipient" value={selectedRow?.id ?? ''} onChange={(event) => setSelectedId(event.target.value)} disabled={Boolean(activeExport)}>
                 {enabledRows.map((row, index) => <option key={row.id} value={row.id}>{row.values.name || `Recipient ${index + 1}`}</option>)}
               </select>
             </div>
@@ -142,14 +142,14 @@ export default function GeneratePanel({ template, dataset, onBack }: GeneratePan
             {activeExport && (
               <div className="export-progress" aria-live="polite">
                 <div><strong>{progress.label}</strong><span>{percent}%</span></div>
-                <div className="progress-track"><div style={{ width: `${percent}%` }} /></div>
+                <div className="progress-track" role="progressbar" aria-label="Certificate export progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><div style={{ width: `${percent}%` }} /></div>
                 <div className="export-progress-footer">
                   <small>{progress.total ? `${Math.min(progress.completed, progress.total)} of ${progress.total}` : 'Preparing'}</small>
                   <button className="cancel-export" type="button" onClick={cancelExport}>Cancel</button>
                 </div>
               </div>
             )}
-            {error && <div className="import-error export-error">{error}</div>}
+            {error && <div className="import-error export-error" role="alert">{error}</div>}
 
             <button className="back-to-recipients" type="button" disabled={Boolean(activeExport)} onClick={onBack}>← Review recipients</button>
           </aside>

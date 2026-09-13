@@ -146,7 +146,11 @@ button{letter-spacing:-.005em}
 }
 .primary-action:hover:not(:disabled){transform:translateY(-1px);background:linear-gradient(180deg,#9586ff,#7965f7);box-shadow:0 11px 28px rgba(113,93,242,.3)}
 .primary-action:active:not(:disabled),.app-action:active,.ghost-action:active{transform:translateY(0)}
-button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid rgba(155,143,255,.9);outline-offset:2px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.canvas-element:focus-visible{outline:2px solid rgba(155,143,255,.9);outline-offset:2px}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.template-preview-select{width:100%;border:0;text-align:inherit;color:inherit;cursor:pointer}
+.template-preview-select:focus-visible{outline-offset:-3px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.template-card:hover,.primary-action:hover:not(:disabled),.export-option:hover:not(:disabled),.tool-button:hover:not(:disabled),.template-category-filter button:hover{transform:none!important}}
 
 .workflow-nav{
   position:relative;

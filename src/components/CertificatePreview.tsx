@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { CertificateElement, CertificateTemplate, CertificateTextElement } from '../types/certificate'
 import type { RecipientValues } from '../types/recipients'
 import { getTemplateMergeValues, splitMergeText } from '../utils/mergeFields'
@@ -136,6 +136,7 @@ type CertificatePreviewProps = {
   onSelectElement?: (id: string | null) => void
   onTransformElement?: (id: string, patch: ElementPatch) => void
   data?: RecipientValues
+  ariaDescribedBy?: string
 }
 
 export default function CertificatePreview({
@@ -147,6 +148,7 @@ export default function CertificatePreview({
   onSelectElement,
   onTransformElement,
   data,
+  ariaDescribedBy,
 }: CertificatePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -207,6 +209,37 @@ export default function CertificatePreview({
     dragRef.current = null
   }
 
+  const handleElementKeyDown = (element: CertificateElement, event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!interactive) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onSelectElement?.(element.id)
+      return
+    }
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
+
+    event.preventDefault()
+    onSelectElement?.(element.id)
+    if (element.locked || !onTransformElement) return
+
+    const step = event.shiftKey ? 10 : 1
+    const horizontal = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0
+    const vertical = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0
+
+    if (event.altKey) {
+      onTransformElement(element.id, {
+        width: Math.round(clamp(element.width + horizontal, 20, template.width - element.x)),
+        height: Math.round(clamp(element.height + vertical, 12, template.height - element.y)),
+      })
+      return
+    }
+
+    onTransformElement(element.id, {
+      x: Math.round(clamp(element.x + horizontal, 0, template.width - element.width)),
+      y: Math.round(clamp(element.y + vertical, 0, template.height - element.height)),
+    })
+  }
+
   return (
     <div
       ref={canvasRef}
@@ -217,6 +250,7 @@ export default function CertificatePreview({
         containerType: 'inline-size',
       }}
       aria-label={`${template.name} certificate preview`}
+      aria-describedby={ariaDescribedBy}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onSelectElement?.(null)
       }}
@@ -234,6 +268,12 @@ export default function CertificatePreview({
             className={`canvas-element ${selected ? 'selected' : ''} ${element.locked ? 'locked' : ''}`.trim()}
             style={elementStyle}
             data-element-id={element.id}
+            role={interactive ? 'button' : undefined}
+            tabIndex={interactive ? 0 : undefined}
+            aria-pressed={interactive ? selected : undefined}
+            aria-label={interactive ? `${element.name}, ${element.type} element${element.locked ? ', locked' : ''}` : undefined}
+            onFocus={() => { if (interactive) onSelectElement?.(element.id) }}
+            onKeyDown={(event) => handleElementKeyDown(element, event)}
             onPointerDown={(event) => startDrag('move', element, event)}
           >
             {element.type === 'shape' && (
@@ -275,9 +315,7 @@ export default function CertificatePreview({
             {interactive && selected && !element.locked && (
               <div
                 className="resize-handle"
-                role="button"
-                aria-label={`Resize ${element.name}`}
-                tabIndex={0}
+                aria-hidden="true"
                 onPointerDown={(event) => startDrag('resize', element, event)}
               />
             )}

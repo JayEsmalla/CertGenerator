@@ -27,13 +27,18 @@ export default function TemplateGallery({
           <article
             key={template.id}
             className={`template-card ${selected ? 'selected' : ''}`}
-            onClick={() => onSelect(template)}
           >
-            <div className="template-card-preview">
+            <button
+              type="button"
+              className="template-card-preview template-preview-select"
+              onClick={() => onSelect(template)}
+              aria-pressed={selected}
+              aria-label={`Preview ${template.name}`}
+            >
               <CertificatePreview template={template} compact />
               {selected && <span className="selected-pill">Selected</span>}
               {custom && <span className="custom-template-pill">Custom</span>}
-            </div>
+            </button>
             <div className="template-card-body">
               <div>
                 <span className="template-category">{template.category}</span>

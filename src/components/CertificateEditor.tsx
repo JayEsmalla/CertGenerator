@@ -223,7 +223,8 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
         </div>
 
         <div className="canvas-stage">
-          <div className="canvas-hint"><span>✦</span>{selectedElement ? 'Drag to reposition · use the corner handle to resize' : 'Select any text, shape, line, or image to customize it'}</div>
+          <span id="editor-keyboard-help" className="sr-only">Tab to a certificate element. Press Enter or Space to select it. Use arrow keys to move it, Shift plus arrow keys for larger movement, and Alt plus arrow keys to resize it.</span>
+          <div className="canvas-hint"><span>✦</span>{selectedElement ? 'Drag or use arrow keys to move · Alt + arrows resize' : 'Select any text, shape, line, or image to customize it'}</div>
           <CertificatePreview
             template={template}
             className="editor-certificate"
@@ -231,6 +232,7 @@ export default function CertificateEditor({ template, onChange, onQuickCustomize
             selectedElementId={selectedElementId}
             onSelectElement={setSelectedElementId}
             onTransformElement={patchElement}
+            ariaDescribedBy="editor-keyboard-help"
           />
         </div>
       </div>

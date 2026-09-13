@@ -118,6 +118,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
         <div className="recipient-data-card">
           <div
             className="import-zone"
+            aria-busy={isImporting}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault()
@@ -134,8 +135,8 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
           </div>
 
           {dataset.sourceName && <div className="source-strip"><span>Source</span><strong>{dataset.sourceName}</strong></div>}
-          {error && <div className="import-error">{error}</div>}
-          {dataset.warnings?.map((warning) => <div className="import-warning" key={warning}>{warning}</div>)}
+          {error && <div className="import-error" role="alert">{error}</div>}
+          {dataset.warnings?.map((warning) => <div className="import-warning" role="status" key={warning}>{warning}</div>)}
 
           {missingFields.length > 0 && (
             <div className="field-status warning" role="alert">
@@ -163,6 +164,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
               </div>
               <div className="recipient-table-wrap">
                 <table className="recipient-table">
+                  <caption className="sr-only">Recipient data review table</caption>
                   <thead>
                     <tr>
                       <th className="include-column">Use</th>
@@ -172,6 +174,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
                             key={field}
                             defaultValue={field}
                             title="Edit merge field name"
+                            aria-label={`Rename merge field ${getMergeFieldLabel(field)}`}
                             onBlur={(event) => renameField(field, event.target.value)}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter') event.currentTarget.blur()
@@ -183,16 +186,20 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleRows.map((row) => (
-                      <tr key={row.id} className={`${row.enabled ? '' : 'disabled-row'} ${integrity.invalidRowIds.has(row.id) ? 'invalid-row' : ''} ${integrity.duplicateRowIds.has(row.id) ? 'duplicate-row' : ''}`.trim()}>
-                        <td className="include-column"><input type="checkbox" checked={row.enabled} onChange={(event) => toggleRow(row.id, event.target.checked)} aria-label={`Use row ${row.id}`} /></td>
-                        {dataset.fields.map((field) => {
-                          const missingRequired = row.enabled && integrity.requiredFields.includes(field) && !row.values[field]?.trim()
-                          return <td key={field} className={missingRequired ? 'missing-required-cell' : ''}><input aria-invalid={missingRequired || undefined} value={row.values[field] ?? ''} onChange={(event) => updateRow(row.id, field, event.target.value)} /></td>
-                        })}
-                        <td className="row-action-column"><button type="button" onClick={() => removeRow(row.id)} aria-label="Remove recipient">×</button></td>
-                      </tr>
-                    ))}
+                    {visibleRows.map((row, rowIndex) => {
+                      const rowNumber = pageStart + rowIndex + 1
+                      const recipientLabel = row.values.name?.trim() || `row ${rowNumber}`
+                      return (
+                        <tr key={row.id} className={`${row.enabled ? '' : 'disabled-row'} ${integrity.invalidRowIds.has(row.id) ? 'invalid-row' : ''} ${integrity.duplicateRowIds.has(row.id) ? 'duplicate-row' : ''}`.trim()}>
+                          <td className="include-column"><input type="checkbox" checked={row.enabled} onChange={(event) => toggleRow(row.id, event.target.checked)} aria-label={`Use recipient ${recipientLabel}`} /></td>
+                          {dataset.fields.map((field) => {
+                            const missingRequired = row.enabled && integrity.requiredFields.includes(field) && !row.values[field]?.trim()
+                            return <td key={field} className={missingRequired ? 'missing-required-cell' : ''}><input aria-label={`${getMergeFieldLabel(field)} for ${recipientLabel}`} aria-invalid={missingRequired || undefined} value={row.values[field] ?? ''} onChange={(event) => updateRow(row.id, field, event.target.value)} /></td>
+                          })}
+                          <td className="row-action-column"><button type="button" onClick={() => removeRow(row.id)} aria-label={`Remove recipient ${recipientLabel}`}>×</button></td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -208,7 +215,7 @@ export default function RecipientsPanel({ template, dataset, onChange, onContinu
         <aside className="recipient-preview-card">
           <div className="preview-card-heading">
             <div><strong>Live merge preview</strong><span>{previewRow ? `${previewIndex + 1} of ${enabledRows.length}` : 'Waiting for data'}</span></div>
-            <div className="preview-nav"><button type="button" disabled={!previewRow || previewIndex === 0} onClick={() => setPreviewIndex((index) => Math.max(0, index - 1))}>←</button><button type="button" disabled={!previewRow || previewIndex >= enabledRows.length - 1} onClick={() => setPreviewIndex((index) => Math.min(enabledRows.length - 1, index + 1))}>→</button></div>
+            <div className="preview-nav"><button type="button" aria-label="Previous recipient preview" disabled={!previewRow || previewIndex === 0} onClick={() => setPreviewIndex((index) => Math.max(0, index - 1))}>←</button><button type="button" aria-label="Next recipient preview" disabled={!previewRow || previewIndex >= enabledRows.length - 1} onClick={() => setPreviewIndex((index) => Math.min(enabledRows.length - 1, index + 1))}>→</button></div>
           </div>
           <CertificatePreview template={template} data={previewRow?.values} className="recipient-certificate-preview" />
           {previewRow && (

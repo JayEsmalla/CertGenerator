@@ -45,4 +45,18 @@ describe('recipient integrity', () => {
     expect(report.duplicateGroupCount).toBe(1)
     expect(report.duplicateRowIds.size).toBe(2)
   })
+
+  it('validates the supported 5,000-recipient ceiling without losing rows', () => {
+    const rows = Array.from({ length: 5_000 }, (_, index) => ({
+      id: `recipient-${index + 1}`,
+      enabled: true,
+      values: { name: `Recipient ${index + 1}`, award: 'Completion' },
+    }))
+    const report = analyzeRecipientIntegrity(template, dataset(rows))
+    expect(report.enabledCount).toBe(5_000)
+    expect(report.validCount).toBe(5_000)
+    expect(report.invalidCount).toBe(0)
+    expect(report.duplicateGroupCount).toBe(0)
+    expect(report.canGenerate).toBe(true)
+  })
 })

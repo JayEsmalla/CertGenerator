@@ -30,6 +30,8 @@ export default function StorageManager({ open, onClose, project, autosaveEnabled
   const [health, setHealth] = useState<StorageHealth | null>(null)
   const [message, setMessage] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -38,9 +40,32 @@ export default function StorageManager({ open, onClose, project, autosaveEnabled
 
   useEffect(() => {
     if (!open) return
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    closeButtonRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = [...(panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])') ?? [])]
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      previousFocus?.focus()
+    }
   }, [onClose, open])
 
   if (!open) return null
@@ -94,8 +119,8 @@ export default function StorageManager({ open, onClose, project, autosaveEnabled
 
   return (
     <div className="storage-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <section className="storage-panel" role="dialog" aria-modal="true" aria-labelledby="storage-title">
-        <div className="storage-panel-header"><div><span className="eyebrow">Local data</span><h2 id="storage-title">Storage & recovery</h2></div><button type="button" onClick={onClose} aria-label="Close storage settings">×</button></div>
+      <section ref={panelRef} className="storage-panel" role="dialog" aria-modal="true" aria-labelledby="storage-title">
+        <div className="storage-panel-header"><div><span className="eyebrow">Local data</span><h2 id="storage-title">Storage & recovery</h2></div><button ref={closeButtonRef} type="button" onClick={onClose} aria-label="Close storage settings">×</button></div>
         <div className="storage-section">
           <div className="storage-row"><div><strong>Project autosave</strong><span>{autosaveEnabled ? 'Changes are saved locally after you edit.' : 'Private session: current changes stay in memory only.'}</span></div><button className={`storage-toggle ${autosaveEnabled ? 'on' : ''}`} type="button" role="switch" aria-checked={autosaveEnabled} onClick={() => onAutosaveChange(!autosaveEnabled)}>{autosaveEnabled ? 'On' : 'Off'}</button></div>
           <div className="storage-meter"><div><strong>{formatBytes(health?.usage ?? null)} used</strong><span>{health?.quota ? `of ${formatBytes(health.quota)} browser quota` : 'Browser quota unavailable'}</span></div>{percent !== null && <div className="storage-meter-track"><div style={{ width: `${percent}%` }} /></div>}</div>
